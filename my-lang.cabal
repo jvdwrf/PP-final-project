@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 
@@ -20,6 +20,7 @@ library
   exposed-modules:
       MyCodeGen
       MyParser
+      ParseTree
   other-modules:
       Paths_my_lang
   hs-source-dirs:
@@ -27,6 +28,7 @@ library
   build-depends:
       QuickCheck ==2.14.*
     , base >=4.7 && <5
+    , containers
     , hspec ==2.8.*
     , parsec ==3.1.*
     , sprockell >=2022.0
@@ -42,6 +44,7 @@ executable my-lang-exe
   build-depends:
       QuickCheck ==2.14.*
     , base >=4.7 && <5
+    , containers
     , hspec ==2.8.*
     , my-lang
     , parsec ==3.1.*
@@ -59,6 +62,7 @@ test-suite my-lang-test
   build-depends:
       QuickCheck ==2.14.*
     , base >=4.7 && <5
+    , containers
     , hspec ==2.8.*
     , my-lang
     , parsec ==3.1.*

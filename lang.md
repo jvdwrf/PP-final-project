@@ -1,16 +1,33 @@
 ## Program
 A Program that can be parsed
 
-    Program = ( Statement )*
+    Program =  ( SharedVars )? Process
+
+## Process
+
+    Process = ( ProcessStatement )*
+
+## ProcessStatement
+    
+    ProcessStatement =
+        | 'spawn' '{' Process '}' ( 'do' '{' Process '}' )?
+        | Statement
+
+    
+
+## SharedVars 
+
+    SharedVars = 'shared' '{' ('let' Identifier '=' Expr ';')* '}'
 
 ## Statement
 A piece of code that does not return any value.
 
     Statement =
-        | 'let' Identifier (':' Type)? '=' Expr ';'                     // DeclStat
+        | 'let' Identifier '=' Expr ';'                                 // DeclStat
         | 'if' Expr '{' (Statement)* '}' (else '{' (Statement)* '}')?   // IfStat  
         | 'while' Expr '{' (Statement)* '}'                             // WhileStat
         | '{' (Statement)* '}'                                          // BlockStat
+        | 'acquire' Identifier '{' (Statement)* '}'                     // AcquireStat
         | Identifier '=' Expr ';'                                       // AssignStat
         | Expr ';'                                                      // ExprStat
 
@@ -53,6 +70,12 @@ An identifier, eg a variable name
 
     Ident = [a..Z] ([a..Z] | [0..9])* 
 
+## Type
+
+    Type
+        = 'Bool'
+        | 'Int'
+        | 'Array' '<' Type ',' Integer '>' 
 
 ## Value
 A value that can be immediately resolved/type-checked. 10 | [1, 3] | True
@@ -63,14 +86,25 @@ A value that can be immediately resolved/type-checked. 10 | [1, 3] | True
         | Array
 
 ## Boolean
+
     Boolean
         = 'True'
         | 'False'
 
 
 ## Integer
+
     Integer = ( [0..9] )+
 
 
 ## Array
+
     Array = '[' (Value ',')* (Value)? ']'
+
+
+## Whitespace
+
+    Whitespace = 
+        | ' '
+        | '\n\
+        | '//' ( ('\n')! )* '\n'
