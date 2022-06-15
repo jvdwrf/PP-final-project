@@ -22,9 +22,7 @@ type ParseTree = ([Decl], [RootStat])
 
 type Decl = (Ident, Value) --TODO: change Value back to Expr
 
-data RootStat
-  = RootStatStat Stat
-  | SpawnStat [RootStat] [RootStat] deriving (Show, Eq)
+
 
 
 
@@ -57,10 +55,19 @@ data Value
   | BoolValue Bool
   | ArrayValue [Value] deriving (Show, Eq)
 
+data RootStat
+  = RootStatStat Stat
+  | SpawnStat [RootStat] [RootStat] deriving (Show, Eq)
+
 type Ident = String
---myParse statP "let y=5"
-elsePartP :: Parser [Stat]
-elsePartP = undefined
+
+rootStatP :: Parser RootStat
+rootStatP = (SpawnStat <$> ((stringP "spawn" *> charP '{') 
+              *> many rootStatP)
+              <* charP '}'
+              <*> option [] ((stringP "do" *> charP '{') *> (many rootStatP) <* charP '}'))
+             <|> RootStatStat <$> statP
+
 
 statP :: Parser Stat
 statP =  (\x y -> DeclStat (x,y)) <$> ((stringP "let " *> identP) <* charP '=') <*> valueP <* charP ';'
