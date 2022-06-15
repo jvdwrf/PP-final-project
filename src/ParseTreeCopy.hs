@@ -61,29 +61,41 @@ data RootStat
 
 type Ident = String
 
-rootStatP :: Parser RootStat
-rootStatP = (SpawnStat <$> ((stringP "spawn" *> charP '{') 
+
+
+fmlP :: Parser ParseTree --TODO: added to original file!
+fmlP = (\sharedDecls rootStats -> (sharedDecls, rootStats)) <$> option [] (try sharedBlockP) <*> option [] (many rootStatP)
+
+sharedBlockP :: Parser [Decl] --TODO: added to original file!
+sharedBlockP = ((stringP "shared" *> charP '{')
+                             *> many declP)
+                             <* charP '}'
+
+rootStatP :: Parser RootStat --TODO: added to original file!
+rootStatP = try (SpawnStat <$> ((stringP "spawn" *> charP '{')
               *> many rootStatP)
               <* charP '}'
-              <*> option [] ((stringP "do" *> charP '{') *> (many rootStatP) <* charP '}'))
+              <*> option [] (try (stringP "do" *> charP '{') *> (many rootStatP) <* charP '}'))
              <|> RootStatStat <$> statP
 
+declP :: Parser Decl --TODO: added to original file!
+declP = (,) <$> ((stringP "let " *> identP) <* charP '=') <*> valueP <* charP ';'
 
-statP :: Parser Stat
-statP =  (\x y -> DeclStat (x,y)) <$> ((stringP "let " *> identP) <* charP '=') <*> valueP <* charP ';'
-          <|> try (IfStat <$> (stringP "if " *> valueP <* charP '{') --TODO: change valueP back to exprP
-                        <*> many statP
-                        <* charP '}'
-                        <*> option [] ((stringP "else" *> charP '{') *> (many statP) <* charP '}'))
-          <|> try (WhileStat <$> (stringP "while " *> valueP <* charP '{') --TODO: change valueP back to exprP
-                       <*> many statP
-                       <* charP '}')
-          <|> (BlockStat <$> (charP '{' *> many statP) <* charP '}')
-          <|> (ExprStat <$> valueP <* charP ';') --TODO: change valueP back to exprP
-          <|> try (AcquireStat <$> (stringP "acquire " *> identP <* charP '{')
-                       <*> many statP
-                       <* charP '}')
-          <|> AssignStat <$> (identP <* charP '=') <*> (valueP <* charP ';') --TODO: change valueP back to exprP
+statP :: Parser Stat --TODO: added to original file!
+statP =  DeclStat <$> declP
+        <|> try (IfStat <$> (stringP "if " *> valueP <* charP '{') --TODO: change valueP back to exprP
+                      <*> many statP
+                      <* charP '}'
+                      <*> option [] (try (stringP "else" *> charP '{') *> (many statP) <* charP '}'))
+        <|> try (WhileStat <$> (stringP "while " *> valueP <* charP '{') --TODO: change valueP back to exprP
+                     <*> many statP
+                     <* charP '}')
+        <|> (BlockStat <$> (charP '{' *> many statP) <* charP '}')
+        <|> (ExprStat <$> valueP <* charP ';') --TODO: change valueP back to exprP
+        <|> try (AcquireStat <$> (stringP "acquire " *> identP <* charP '{')
+                     <*> many statP
+                     <* charP '}')
+        <|> AssignStat <$> (identP <* charP '=') <*> (valueP <* charP ';') --TODO: change valueP back to exprP
 
 
 methodP :: Parser Method
@@ -157,6 +169,9 @@ commentP = () <$ (string "//" *> noneOf ['\n'])
 
 myParse :: Parser a -> String -> Either ParseError a
 myParse p = parse (wsP *> p) ""
+
+parseFml :: String -> Either ParseError ParseTree --TODO: added to original file!
+parseFml = parse (fmlP <* eof) ""
 
 ----------
 -- TEST --
