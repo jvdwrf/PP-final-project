@@ -48,5 +48,13 @@
     <orderEntry type="library" name="time-1.9.3" level="project" />
     <orderEntry type="library" name="unix-2.7.2.2" level="project" />
     <orderEntry type="library" name="primitive-0.7.3.0" level="project" />
+    <orderEntry type="library" name="ghc-9.0.2" level="project" />
+    <orderEntry type="library" name="exceptions-0.10.4" level="project" />
+    <orderEntry type="library" name="ghc-boot-9.0.2" level="project" />
+    <orderEntry type="library" name="ghc-heap-9.0.2" level="project" />
+    <orderEntry type="library" name="ghci-9.0.2" level="project" />
+    <orderEntry type="library" name="hpc-0.6.1.0" level="project" />
+    <orderEntry type="library" name="process-1.6.13.2" level="project" />
+    <orderEntry type="library" name="terminfo-0.4.1.5" level="project" />
   </component>
 </module>

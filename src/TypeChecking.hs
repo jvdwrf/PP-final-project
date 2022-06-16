@@ -1,0 +1,48 @@
+module TypeChecking () where
+
+-- AST
+--type Dict = Map Ident Type
+--
+--data Type
+--  = IntType
+--  | BoolType
+--  | ArrayType Type Int deriving (Eq, Show)
+--
+--getExprType :: Dict ->  Expr -> Type
+--getExprType dict (OpExpr expr1 op expr2) = getOpExprType (getExprType dict expr1) op (getExprType dict expr2)
+--getExprType dict (ParenExpr expr) = getExprType dict expr
+--getExprType _dict (ValueExpr val) = getValType val
+--getExprType dict (IdentExpr ident) = fromJust (lookup ident dict)
+--getExprType dict (BlockExpr _ expr) = getExprType dict expr
+--getExprType dict (MethodExpr method) = getMethodType dict method
+--
+--getOpExprType :: Type -> Op -> Type -> Type
+--getOpExprType t1 EqOp t2
+--  | t1 == t2 = BoolType
+--  | otherwise = error "Can't compare two different types"
+--getOpExprType t1 op t2
+--  | t1 == t2 && t1 == IntType = getOpType op
+--  | otherwise = error "Can't do operation on different types than int"
+--
+--getOpType :: Op -> Type
+--getOpType EqOp = BoolType
+--getOpType GtOp = BoolType
+--getOpType LtOp = BoolType
+--getOpType AddOp = IntType
+--getOpType SubOp = IntType
+--getOpType MulOp = IntType
+--
+--getValType :: Value -> Type
+--getValType (IntValue _) = IntType
+--getValType (BoolValue _) = BoolType
+--getValType (ArrayValue (t: ts)) = ArrayType (getValType t) (length (t:ts))
+--getValType (ArrayValue _) = error "Can't create arrays with 0 elements"
+--
+--getMethodType :: Dict -> Method -> Type
+--getMethodType dict (GetMethod array _i) = getInnerArrayType (getExprType dict array)
+--getMethodType dict (SetMethod array _i _val) = getInnerArrayType (getExprType dict array)
+--getMethodType dict (PrintMethod expr) = getExprType dict expr
+--
+--getInnerArrayType :: Type -> Type
+--getInnerArrayType (ArrayType t _len) = t
+--getInnerArrayType _ = error "Is not of type array"
