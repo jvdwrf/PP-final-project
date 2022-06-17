@@ -9,12 +9,12 @@ shared {
 let x = 10;
 
 spawn {
-    aquire variable {
+    acquire variable {
         variable = variable + 1;
     }
 
     spawn {
-        aquire variable {
+        acquire variable {
             variable = variable + 1;
         }
     }
@@ -31,6 +31,6 @@ spawn {
 }
 
 
-aquire variable {
+acquire variable {
     print(variable);
 }

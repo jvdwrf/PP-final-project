@@ -18,7 +18,8 @@ import Text.Parsec.Expr (buildExpressionParser)
 
 data ParseTree = ParseTree [Decl] [RootStat]  deriving (Show, Eq)
 
-type Decl = (Ident, Value) --TODO: change Value back to Expr
+type Decl = (Ident, Expr)
+type Process = [RootStat]
 
 data Stat
   = DeclStat Decl
@@ -73,7 +74,7 @@ rootStatP = try (SpawnStat <$> ((stringP "spawn" *> charP '{')
              <|> RootStatStat <$> statP
 
 declP :: Parser Decl
-declP = (,) <$> ((stringP "let " *> identP) <* charP '=') <*> valueP <* charP ';'
+declP = (,) <$> ((stringP "let " *> identP) <* charP '=') <*> exprP <* charP ';'
 
 --myParse statP "if x<6 {}"
 statP :: Parser Stat

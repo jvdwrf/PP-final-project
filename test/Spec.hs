@@ -5,7 +5,11 @@ import Test.Hspec
 import Test.QuickCheck
 import Text.Parsec.Char (char)
 import Text.Parsec.Combinator (sepEndBy1)
-
+import TypeChecking
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Control.Exception.Base (evaluate)
+import Text.Parsec.String (Parser)
 
 main :: IO ()
 main = hspec $ do
@@ -89,9 +93,9 @@ main = hspec $ do
 
   describe "BlockExpr parsing" $ do
     it "exprP works on a simple block with one statement" $ do
-      myParse (exprP) "{let x=5; x}" `shouldBe` Right (BlockExpr [DeclStat ("x",IntValue 5)] (IdentExpr "x"))
+      myParse (exprP) "{let x=5; x}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5))] (IdentExpr "x"))
     it "exprP works on a simple block with multiple statements" $ do
-      myParse (exprP) "{let x=5;\nlet y=7;\ny}" `shouldBe` Right (BlockExpr [DeclStat ("x",IntValue 5),DeclStat ("y",IntValue 7)] (IdentExpr "y"))
+      myParse (exprP) "{let x=5;\nlet y=7;\ny}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5)),DeclStat ("y",ValueExpr (IntValue 7))] (IdentExpr "y"))
 
   describe "Associativity parsing" $ do
     it "exprP works on a simple associativity #1" $ do
@@ -119,11 +123,11 @@ main = hspec $ do
     it "fmlP works #1" $ do
       myParse (fmlP) " shared { let x = 7 ;\n let y = 4 ; } let d = 7 ; "
       `shouldBe`
-      Right (ParseTree [("x",IntValue 7),("y",IntValue 4)] [RootStatStat (DeclStat ("d",IntValue 7))])
+      Right (ParseTree [("x",ValueExpr (IntValue 7)),("y", ValueExpr (  IntValue 4))] [RootStatStat (DeclStat ("d",ValueExpr ( IntValue 7)))])
     it "fmlP works with shared and acquire blocks #1" $ do
       myParse (fmlP) "shared{let x=7; let y=4;} d=7; acquire var { var=9; }"
       `shouldBe`
-      Right (ParseTree [("x",IntValue 7),("y",IntValue 4)] [RootStatStat (AssignStat "d" (ValueExpr (IntValue 7))),RootStatStat (AcquireStat "var" [AssignStat "var" (ValueExpr (IntValue 9))])])
+      Right (ParseTree [("x",ValueExpr ( IntValue 7)),("y",ValueExpr (IntValue 4))] [RootStatStat (AssignStat "d" (ValueExpr (IntValue 7))),RootStatStat (AcquireStat "var" [AssignStat "var" (ValueExpr (IntValue 9))])])
     it "fmlP works with simple spawn blocks #1" $ do
       myParse (fmlP) "spawn {  } do {  }"
       `shouldBe`
@@ -131,11 +135,11 @@ main = hspec $ do
     it "fmlP works with simple spawn blocks" $ do
       myParse (fmlP) "spawn { let x = 10; } do { let x = 10; }"
       `shouldBe`
-      Right (ParseTree [] [SpawnStat [RootStatStat (DeclStat ("x",IntValue 10))] [RootStatStat (DeclStat ("x",IntValue 10))]])
+      Right (ParseTree [] [SpawnStat [RootStatStat (DeclStat ("x",ValueExpr (IntValue 10)))] [RootStatStat (DeclStat ("x",ValueExpr (IntValue 10)))]])
     it "fmlP works with nested spawn blocks" $ do
       myParse (fmlP) "spawn { let x = 10; } do { spawn { let x = 10; } do { let x = 10; } }"
       `shouldBe`
-      Right (ParseTree [] [SpawnStat [RootStatStat (DeclStat ("x",IntValue 10))] [SpawnStat [RootStatStat (DeclStat ("x",IntValue 10))] [RootStatStat (DeclStat ("x",IntValue 10))]]])
+      Right (ParseTree [] [SpawnStat [RootStatStat (DeclStat ("x",ValueExpr (IntValue 10)))] [SpawnStat [RootStatStat (DeclStat ("x",ValueExpr (IntValue 10)))] [RootStatStat (DeclStat ("x",ValueExpr (IntValue 10)))]]])
     it "can't spawn when not in root stat" $ do
       myParse (fmlP) "if (True) { }"
       `shouldBe`
@@ -148,4 +152,36 @@ main = hspec $ do
       myParse (fmlP) "if (True) { spawn { } }"
       `shouldSatisfy` isLeft
 
+  describe "type-checking" $ do
+    it "basic-types" $ do
+      getExprType (newRootScope Map.empty) (fromRight (myParse exprP "10")) `shouldBe` IntType
+    it "basic-types" $ do
+      getExprType (newRootScope Map.empty) (fromRight (myParse exprP "True")) `shouldBe` BoolType
+    it "basic-types" $ do
+      getExprType (newRootScope Map.empty) (fromRight (myParse exprP "[1,2]")) `shouldBe` ArrayType IntType 2
+    it "basic-scope" $ do
+      getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x")) `shouldBe` IntType
+    it "basic-scope" $ do
+      getExprType (testScope [("x", (ValueExpr (IntValue 2)))] []) (fromRight (myParse exprP "x")) `shouldBe` IntType
+    it "complex-types" $ do
+      getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x==2")) `shouldBe` BoolType
+    it "complex-types" $ do
+      evaluate (getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x==True"))) `shouldThrow` anyException
+    it "shared-decl to scope" $ do
+      sharedDecl2Scope (testParse sharedBlockP "shared { let x = 1; }")
+      `shouldBe`
+      Scope { sharedVars = Map.fromList [("x", (0, IntType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
+    it "shared-decl to scope larger example" $ do
+      sharedDecl2Scope (testParse sharedBlockP "shared { let y = [0,1]; let x = 1; }")
+      `shouldBe`
+      Scope { sharedVars = Map.fromList [("y", (0, (ArrayType IntType 2))), ("x", (2, IntType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
 
+testParse :: Parser b -> String -> b
+testParse parser str = fromRight (myParse parser str)
+
+testScope :: [(Decl)] -> [(String, Type)] -> Scope
+testScope shared local = foldr (\(ident, ty) scope -> pushScopeVar scope ty ident) (sharedDecl2Scope shared) local
+
+fromRight :: Either a b -> b
+fromRight (Right v) = v
+fromRight _ = error "Either was Left"

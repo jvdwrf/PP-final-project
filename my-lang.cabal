@@ -18,6 +18,7 @@ extra-source-files:
 
 library
   exposed-modules:
+      Compiler
       ExParseExample
       MyCodeGen
       MyParser

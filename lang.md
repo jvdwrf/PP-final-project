@@ -68,14 +68,7 @@ A built-in method call
 ## Ident
 An identifier, eg a variable name
 
-    Ident = [a..Z] ([a..Z] | [0..9])* 
-
-## Type
-
-    Type
-        = 'Bool'
-        | 'Int'
-        | 'Array' '<' Type ',' Integer '>' 
+    Ident = [a..Z] ([a..Z] | [0..9])*
 
 ## Value
 A value that can be immediately resolved/type-checked. 10 | [1, 3] | True
