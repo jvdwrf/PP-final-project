@@ -19,6 +19,7 @@ import Text.Parsec.Expr (buildExpressionParser)
 data ParseTree = ParseTree [Decl] [RootStat]  deriving (Show, Eq)
 
 type Decl = (Ident, Expr)
+type Process = [RootStat]
 
 data Stat
   = DeclStat Decl
@@ -32,7 +33,6 @@ data Stat
 data Expr
   = OpExpr Op Expr Expr
   | ParenExpr Expr
-  | BlockExpr [Stat] Expr
   | MethodExpr Method
   | IdentExpr Ident
   | ValueExpr Value deriving (Show, Eq)
@@ -122,8 +122,8 @@ exprP'' = chainl1 exprP''' opP
 
 exprP''' :: Parser Expr
 exprP'''
-  = BlockExpr <$> (charP '{' *> many (try statP)) <*> exprP <* charP '}'
-  <|> ParenExpr <$> (charP '(' *> exprP) <* charP ')'
+--  = BlockExpr <$> (charP '{' *> many (try statP)) <*> exprP <* charP '}'
+  = ParenExpr <$> (charP '(' *> exprP) <* charP ')'
   <|> try (MethodExpr <$> methodP)  -- MethodExpr (has overlap with identExpr)
   <|> ValueExpr <$> valueP          -- ValueExpr (value and ident have no overlap)
   <|> IdentExpr <$> identP          -- IdentExpr

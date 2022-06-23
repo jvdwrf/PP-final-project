@@ -132,9 +132,9 @@ typeSize (ArrayType ty len) = len * (typeSize ty)
 getExprType :: Scope ->  Expr -> Type
 getExprType scope (OpExpr op expr1 expr2) = getOpExprType (getExprType scope expr1) op (getExprType scope expr2)
 getExprType scope (ParenExpr expr) = getExprType scope expr
-getExprType _scope (ValueExpr val) = getValType val
+getExprType scope (ValueExpr val) = getValType scope val
 getExprType scope (IdentExpr ident) = (lookupScopeType scope ident)
-getExprType scope (BlockExpr _ expr) = getExprType scope expr
+--getExprType scope (BlockExpr _ expr) = getExprType scope expr
 getExprType scope (MethodExpr method) = getMethodType scope method
 
 getOpExprType :: Type -> Op -> Type -> Type
@@ -153,11 +153,11 @@ getOpType AddOp = IntType
 getOpType SubOp = IntType
 getOpType MulOp = IntType
 
-getValType :: ParseTree.Value -> Type
-getValType (IntValue _) = IntType
-getValType (BoolValue _) = BoolType
-getValType (ArrayValue (t: ts)) = ArrayType (getValType t) (length (t:ts))
-getValType (ArrayValue _) = error "Can't create arrays with 0 elements"
+getValType :: Scope -> ParseTree.Value -> Type
+getValType _scope (IntValue _) = IntType
+getValType _scope (BoolValue _) = BoolType
+getValType scope (ArrayValue (t: ts)) = ArrayType (getExprType scope t) (length (t:ts))
+getValType _scope (ArrayValue _) = error "Can't create arrays with 0 elements"
 
 getMethodType :: Scope -> Method -> Type
 getMethodType scope (GetMethod array _i) = getInnerArrayType (getExprType scope array)

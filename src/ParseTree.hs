@@ -16,6 +16,16 @@ import Text.Parsec
 import Data.Either
 import Text.Parsec.Expr (buildExpressionParser)
 
+data AST = AST [AstDecl] [AstRootStat]
+
+type AstDecl = (Ident, AstExpr)
+type AstProcess = [AstRootStat]
+
+data AstRootStat
+  = AstRootStatStat AstStat
+  | SpawnStat [AstRootStat] [AstRootStat] deriving (Show, Eq)
+
+
 data ParseTree = ParseTree [Decl] [RootStat]  deriving (Show, Eq)
 
 type Decl = (Ident, Expr)
@@ -33,7 +43,6 @@ data Stat
 data Expr
   = OpExpr Op Expr Expr
   | ParenExpr Expr
-  | BlockExpr [Stat] Expr
   | MethodExpr Method
   | IdentExpr Ident
   | ValueExpr Value deriving (Show, Eq)
@@ -48,7 +57,7 @@ data Method
 data Value
   = IntValue Int
   | BoolValue Bool
-  | ArrayValue [Value] deriving (Show, Eq)
+  | ArrayValue [Expr] deriving (Show, Eq)
 
 data RootStat
   = RootStatStat Stat
@@ -123,8 +132,8 @@ exprP'' = chainl1 exprP''' opP
 
 exprP''' :: Parser Expr
 exprP'''
-  = BlockExpr <$> (charP '{' *> many (try statP)) <*> exprP <* charP '}'
-  <|> ParenExpr <$> (charP '(' *> exprP) <* charP ')'
+--  = BlockExpr <$> (charP '{' *> many (try statP)) <*> exprP <* charP '}'
+  = ParenExpr <$> (charP '(' *> exprP) <* charP ')'
   <|> try (MethodExpr <$> methodP)  -- MethodExpr (has overlap with identExpr)
   <|> ValueExpr <$> valueP          -- ValueExpr (value and ident have no overlap)
   <|> IdentExpr <$> identP          -- IdentExpr
@@ -146,15 +155,8 @@ integerP = read <$> (many1 digit <* wsP)
 boolP :: Parser Bool
 boolP =  (True <$ stringP "True") <|> (False <$ stringP "False")
 
-arrayP :: Parser [Value]
-arrayP =
-  charP '['
-  *> (
-    (sepEndBy1 (BoolValue <$> boolP) (charP ','))
-    <|> (sepEndBy1 (IntValue <$> integerP) (charP ','))
-    <|> (sepEndBy1 (ArrayValue <$> arrayP) (charP ','))
-  )
-  <* charP ']'
+arrayP :: Parser [Expr]
+arrayP = charP '[' *> (sepEndBy1 exprP (charP ',')) <* charP ']'
 
 stringP :: String -> Parser String
 stringP s = string s <* wsP

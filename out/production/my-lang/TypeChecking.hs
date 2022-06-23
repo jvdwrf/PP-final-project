@@ -1,4 +1,4 @@
-module TypeChecking () where
+module TypeChecking where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -23,7 +23,7 @@ data Scope = Scope
     localVars :: ScopeVars,   -- Can be declared dynamically, and are copied over to a new scope as-is.
     pushCount :: Int,         -- The amount of times a variable has been push in the current scope. set to 0 when opening a new scope.
     stackPtr :: Int           -- The place on the stack where the next variable will be set. Copied over to a new scope as-is.
-  }
+  } deriving (Eq, Show)
 
 -- Create a new root-scope, given all shared variables that have been declared
 newRootScope :: ScopeVars -> Scope
@@ -34,22 +34,26 @@ newRootScope sharedVars =
       pushCount = 0,
       stackPtr = 0
     }
+    
+
 
 lookupScopeType :: Scope -> String -> Type
 lookupScopeType scope ident
   | isJust maybeLocal = snd (fromJust maybeLocal)
   | isJust maybeShared = snd (fromJust maybeShared)
+  | otherwise = error ("Variable " ++ ident ++ " not in scope.")
   where
     maybeLocal = Map.lookup ident (localVars scope)
-    maybeShared = Map.lookup ident (localVars scope)
+    maybeShared = Map.lookup ident (sharedVars scope)
 
 lookupScopeLoc :: Scope -> String -> VarLoc
 lookupScopeLoc scope ident
   | isJust maybeLocal = LocalLoc (fst (fromJust maybeLocal))
   | isJust maybeShared = SharedLoc (fst (fromJust maybeShared))
+  | otherwise = error ("Variable "++ident++" not in scope.")
   where
     maybeLocal = Map.lookup ident (localVars scope)
-    maybeShared = Map.lookup ident (localVars scope)
+    maybeShared = Map.lookup ident (sharedVars scope)
 
 openScope :: Scope -> Scope
 openScope scope =
@@ -86,15 +90,13 @@ sharedDecl2List :: [Decl] -> Int -> [(String, (Int, Type))]
 sharedDecl2List [] offset = []
 sharedDecl2List ((ident, expr) : decls) offset = (ident, (offset, ty)) : sharedDecl2List decls (offset + (typeSize ty))
   where
-    ty = expr2type (newRootScope Map.empty) expr
+    ty = getExprType (newRootScope Map.empty) expr
 
 typeSize :: Type -> Int
 typeSize IntType = 1
 typeSize BoolType = 1
 typeSize (ArrayType ty len) = len * (typeSize ty)
 
-expr2type :: Scope -> Expr -> Type
-expr2type scope expr = undefined
 
 
 
@@ -132,7 +134,7 @@ getExprType scope (OpExpr op expr1 expr2) = getOpExprType (getExprType scope exp
 getExprType scope (ParenExpr expr) = getExprType scope expr
 getExprType _scope (ValueExpr val) = getValType val
 getExprType scope (IdentExpr ident) = (lookupScopeType scope ident)
-getExprType scope (BlockExpr _ expr) = getExprType scope expr
+--getExprType scope (BlockExpr _ expr) = getExprType scope expr
 getExprType scope (MethodExpr method) = getMethodType scope method
 
 getOpExprType :: Type -> Op -> Type -> Type

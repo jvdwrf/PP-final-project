@@ -58,10 +58,10 @@ main = hspec $ do
       myParse (sepEndBy1 (charP 'a') (charP 'b')) " a  b a  b" `shouldBe` Right "aa"
 
     it "basic array is parsed" $ do
-      myParse arrayP "[1,2]" `shouldBe` Right [IntValue 1, IntValue 2]
+      myParse arrayP "[1,2]" `shouldBe` Right [ValueExpr (IntValue 1), ValueExpr (IntValue 2)]
 
     it "basic array is parsed" $ do
-      myParse valueP "  [1  ,2 ,]  " `shouldBe` Right (ArrayValue [IntValue 1, IntValue 2])
+      myParse valueP "  [1  ,2 ,]  " `shouldBe` Right (ArrayValue [ValueExpr (IntValue 1), ValueExpr (IntValue 2)])
 
   describe "identifier parsing" $ do
     it "identP works1" $ do
@@ -71,9 +71,9 @@ main = hspec $ do
 
   describe "method parsing" $ do
     it "get method works1" $ do
-      myParse (methodP) "  get([5,7], 1)" `shouldBe` Right (GetMethod (ValueExpr (ArrayValue [IntValue 5, IntValue 7])) (ValueExpr (IntValue 1)))
+      myParse (methodP) "  get([5,7], 1)" `shouldBe` Right (GetMethod (ValueExpr (ArrayValue [ValueExpr (IntValue 5), ValueExpr (IntValue 7)])) (ValueExpr (IntValue 1)))
     it "set method works1" $ do
-      myParse (methodP) "  set([5,7], 1, 8)" `shouldBe` Right (SetMethod (ValueExpr (ArrayValue [IntValue 5, IntValue 7])) (ValueExpr (IntValue 1)) (ValueExpr (IntValue 8)))
+      myParse (methodP) "  set([5,7], 1, 8)" `shouldBe` Right (SetMethod (ValueExpr (ArrayValue [ValueExpr (IntValue 5), ValueExpr (IntValue 7)])) (ValueExpr (IntValue 1)) (ValueExpr (IntValue 8)))
     it "print method works1" $ do
       myParse (methodP) "  print(8)" `shouldBe` Right (PrintMethod (ValueExpr (IntValue 8)))
 
@@ -91,11 +91,15 @@ main = hspec $ do
     it "exprP works on multiplication" $ do
       myParse (exprP) "7*6" `shouldBe` Right (OpExpr MulOp (ValueExpr (IntValue 7))  (ValueExpr (IntValue 6)))
 
-  describe "BlockExpr parsing" $ do
-    it "exprP works on a simple block with one statement" $ do
-      myParse (exprP) "{let x=5; x}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5))] (IdentExpr "x"))
-    it "exprP works on a simple block with multiple statements" $ do
-      myParse (exprP) "{let x=5;\nlet y=7;\ny}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5)),DeclStat ("y",ValueExpr (IntValue 7))] (IdentExpr "y"))
+
+    describe "array parsing" $ do
+      it "array" $ do
+        myParse (arrayP) "[6,2+8]"  `shouldBe` Right [ValueExpr (IntValue 6), OpExpr AddOp (ValueExpr (IntValue 2)) (ValueExpr (IntValue 8))]
+    --  describe "BlockExpr parsing" $ do
+--    it "exprP works on a simple block with one statement" $ do
+--      myParse (exprP) "{let x=5; x}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5))] (IdentExpr "x"))
+--    it "exprP works on a simple block with multiple statements" $ do
+--      myParse (exprP) "{let x=5;\nlet y=7;\ny}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5)),DeclStat ("y",ValueExpr (IntValue 7))] (IdentExpr "y"))
 
   describe "Associativity parsing" $ do
     it "exprP works on a simple associativity #1" $ do
@@ -159,6 +163,8 @@ main = hspec $ do
       getExprType (newRootScope Map.empty) (fromRight (myParse exprP "True")) `shouldBe` BoolType
     it "basic-types" $ do
       getExprType (newRootScope Map.empty) (fromRight (myParse exprP "[1,2]")) `shouldBe` ArrayType IntType 2
+    it "basic-types" $ do
+          getExprType (newRootScope Map.empty) (fromRight (myParse exprP "[6,2+8]")) `shouldBe` ArrayType IntType 2
     it "basic-scope" $ do
       getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x")) `shouldBe` IntType
     it "basic-scope" $ do

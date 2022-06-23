@@ -57,61 +57,12 @@ compileDecl scope (ident, expr) = (newScope, prog)
 compileExpr :: Scope -> Expr -> SprilProg
 compileExpr scope (ParenExpr expr) = compileExpr scope expr
 compileExpr scope (OpExpr op expr1 expr2)
-  = compileExpr scope expr1
-  ++ compileExpr scope expr2
-  ++ op2iloc op
-compileExpr scope (ValueExpr value)
-  = value2iloc scope value
-
-value2iloc :: Scope -> ParseTree.Value -> SprilProg
-value2iloc scope (IntValue int) = [
-    Load (ImmValue int) regA,
-    Push regA
-  ]
-value2iloc scope (BoolValue bool) = [
-    Load (ImmValue (fromEnum bool)) regA,
-    Push regA
-  ]
-value2iloc scope (ArrayValue array) = undefined
-
+    = compileExpr scope expr1
+    ++ compileExpr scope expr2
+    ++ op2iloc op
 
 op2iloc :: Op -> SprilProg
-op2iloc AddOp = [
-  Pop regB,
-  Pop regA,
-  Compute Add regA regB regA,
-  Push regA
-  ]
-op2iloc SubOp = [
-  Pop regB,
-  Pop regA,
-  Compute Sub regA regB regA,
-  Push regA
-  ]
-op2iloc MulOp = [
-  Pop regB,
-  Pop regA,
-  Compute Mul regA regB regA,
-  Push regA
-  ]
-op2iloc GtOp = [
-  Pop regB,
-  Pop regA,
-  Compute Gt regA regB regA,
-  Push regA
-  ]
-op2iloc LtOp = [
-  Pop regB,
-  Pop regA,
-  Compute Lt regA regB regA,
-  Push regA
-  ]
-op2iloc EqOp = [
-  Pop regB,
-  Pop regA,
-  Compute Equal regA regB regA,
-  Push regA
-  ]
+op2iloc (Op AddOp) = []
 
 ----- SHARED ------
 
