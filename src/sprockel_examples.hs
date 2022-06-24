@@ -40,8 +40,7 @@ showLocalMem (_, systemState) = show $ localMem $ head $ sprStates systemState
 -- }
 -- print(v);
 
-ptr ::  Int -> AddrImmDI
-ptr num = DirAddr (31 - num)
+
 
 
 

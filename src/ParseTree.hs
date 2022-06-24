@@ -16,15 +16,7 @@ import Text.Parsec
 import Data.Either
 import Text.Parsec.Expr (buildExpressionParser)
 
-data AST = AST [AstDecl] [AstRootStat]
-
-type AstDecl = (Ident, AstExpr)
-type AstProcess = [AstRootStat]
-
-data AstRootStat
-  = AstRootStatStat AstStat
-  | SpawnStat [AstRootStat] [AstRootStat] deriving (Show, Eq)
-
+-- PARSE TREE
 
 data ParseTree = ParseTree [Decl] [RootStat]  deriving (Show, Eq)
 
@@ -50,14 +42,11 @@ data Expr
 data Op = AddOp | SubOp | MulOp | GtOp | LtOp | EqOp deriving (Show, Eq)
 
 data Method
-  = GetMethod Expr Expr         --first expr: array; second expr: index
-  | SetMethod Expr Expr Expr    --first expr: array; second expr: index; third expr: new value
-  | PrintMethod Expr deriving (Show, Eq)
+  =   PrintMethod Expr deriving (Show, Eq)
 
 data Value
   = IntValue Int
-  | BoolValue Bool
-  | ArrayValue [Expr] deriving (Show, Eq)
+  | BoolValue Bool deriving (Show, Eq)
 
 data RootStat
   = RootStatStat Stat
@@ -104,10 +93,7 @@ statP =  DeclStat <$> declP
 
 
 methodP :: Parser Method
-methodP =
-  GetMethod <$> (stringP "get" *> charP '(' *> exprP) <* charP ',' <*> exprP <* charP ')'
-  <|> (SetMethod <$> (stringP "set" *> charP '(' *> exprP) <* charP ',' <*> exprP <* charP ',' <*> exprP <* charP ')')
-  <|> (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
+methodP = (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
 
 
 exprP :: Parser Expr
@@ -147,16 +133,12 @@ valueP :: Parser Value
 valueP =
   try (BoolValue <$> boolP)
   <|> (IntValue <$> integerP)
-  <|> (ArrayValue <$> arrayP)
 
 integerP :: Parser Int
 integerP = read <$> (many1 digit <* wsP)
 
 boolP :: Parser Bool
 boolP =  (True <$ stringP "True") <|> (False <$ stringP "False")
-
-arrayP :: Parser [Expr]
-arrayP = charP '[' *> (sepEndBy1 exprP (charP ',')) <* charP ']'
 
 stringP :: String -> Parser String
 stringP s = string s <* wsP

@@ -5,7 +5,7 @@ import Test.Hspec
 import Test.QuickCheck
 import Text.Parsec.Char (char)
 import Text.Parsec.Combinator (sepEndBy1)
-import TypeChecking
+import Scope
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Exception.Base (evaluate)
@@ -57,11 +57,6 @@ main = hspec $ do
     it "sepBy1 works1" $ do
       myParse (sepEndBy1 (charP 'a') (charP 'b')) " a  b a  b" `shouldBe` Right "aa"
 
-    it "basic array is parsed" $ do
-      myParse arrayP "[1,2]" `shouldBe` Right [ValueExpr (IntValue 1), ValueExpr (IntValue 2)]
-
-    it "basic array is parsed" $ do
-      myParse valueP "  [1  ,2 ,]  " `shouldBe` Right (ArrayValue [ValueExpr (IntValue 1), ValueExpr (IntValue 2)])
 
   describe "identifier parsing" $ do
     it "identP works1" $ do
@@ -70,10 +65,6 @@ main = hspec $ do
       myParse (identP) "  9myVar88" `shouldSatisfy` isLeft
 
   describe "method parsing" $ do
-    it "get method works1" $ do
-      myParse (methodP) "  get([5,7], 1)" `shouldBe` Right (GetMethod (ValueExpr (ArrayValue [ValueExpr (IntValue 5), ValueExpr (IntValue 7)])) (ValueExpr (IntValue 1)))
-    it "set method works1" $ do
-      myParse (methodP) "  set([5,7], 1, 8)" `shouldBe` Right (SetMethod (ValueExpr (ArrayValue [ValueExpr (IntValue 5), ValueExpr (IntValue 7)])) (ValueExpr (IntValue 1)) (ValueExpr (IntValue 8)))
     it "print method works1" $ do
       myParse (methodP) "  print(8)" `shouldBe` Right (PrintMethod (ValueExpr (IntValue 8)))
 
@@ -91,15 +82,6 @@ main = hspec $ do
     it "exprP works on multiplication" $ do
       myParse (exprP) "7*6" `shouldBe` Right (OpExpr MulOp (ValueExpr (IntValue 7))  (ValueExpr (IntValue 6)))
 
-
-    describe "array parsing" $ do
-      it "array" $ do
-        myParse (arrayP) "[6,2+8]"  `shouldBe` Right [ValueExpr (IntValue 6), OpExpr AddOp (ValueExpr (IntValue 2)) (ValueExpr (IntValue 8))]
-    --  describe "BlockExpr parsing" $ do
---    it "exprP works on a simple block with one statement" $ do
---      myParse (exprP) "{let x=5; x}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5))] (IdentExpr "x"))
---    it "exprP works on a simple block with multiple statements" $ do
---      myParse (exprP) "{let x=5;\nlet y=7;\ny}" `shouldBe` Right (BlockExpr [DeclStat ("x",ValueExpr (IntValue 5)),DeclStat ("y",ValueExpr (IntValue 7))] (IdentExpr "y"))
 
   describe "Associativity parsing" $ do
     it "exprP works on a simple associativity #1" $ do
@@ -157,17 +139,13 @@ main = hspec $ do
       `shouldSatisfy` isLeft
 
   describe "type-checking" $ do
-    it "basic-types" $ do
+    it "basic-types1" $ do
       getExprType (newRootScope Map.empty) (fromRight (myParse exprP "10")) `shouldBe` IntType
-    it "basic-types" $ do
+    it "basic-types2" $ do
       getExprType (newRootScope Map.empty) (fromRight (myParse exprP "True")) `shouldBe` BoolType
-    it "basic-types" $ do
-      getExprType (newRootScope Map.empty) (fromRight (myParse exprP "[1,2]")) `shouldBe` ArrayType IntType 2
-    it "basic-types" $ do
-          getExprType (newRootScope Map.empty) (fromRight (myParse exprP "[6,2+8]")) `shouldBe` ArrayType IntType 2
-    it "basic-scope" $ do
+    it "basic-scope5" $ do
       getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x")) `shouldBe` IntType
-    it "basic-scope" $ do
+    it "basic-scope6" $ do
       getExprType (testScope [("x", (ValueExpr (IntValue 2)))] []) (fromRight (myParse exprP "x")) `shouldBe` IntType
     it "complex-types" $ do
       getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x==2")) `shouldBe` BoolType
@@ -178,9 +156,9 @@ main = hspec $ do
       `shouldBe`
       Scope { sharedVars = Map.fromList [("x", (0, IntType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
     it "shared-decl to scope larger example" $ do
-      sharedDecl2Scope (testParse sharedBlockP "shared { let y = [0,1]; let x = 1; }")
+      sharedDecl2Scope (testParse sharedBlockP "shared { let y = True; let x = 1; }")
       `shouldBe`
-      Scope { sharedVars = Map.fromList [("y", (0, (ArrayType IntType 2))), ("x", (2, IntType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
+      Scope { sharedVars = Map.fromList [("x",(1,IntType)),("y",(0,BoolType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
 
 testParse :: Parser b -> String -> b
 testParse parser str = fromRight (myParse parser str)

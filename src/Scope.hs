@@ -1,4 +1,4 @@
-module TypeChecking where
+module Scope where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -34,8 +34,6 @@ newRootScope sharedVars =
       pushCount = 0,
       stackPtr = 0
     }
-    
-
 
 lookupScopeType :: Scope -> String -> Type
 lookupScopeType scope ident
@@ -67,7 +65,7 @@ openScope scope =
 pushScopeVar :: Scope -> Type -> String -> Scope -- Push a variable onto a scope
 pushScopeVar scope ty ident
   | isNothing shared_var && isNothing local_var = pushScopeVar' scope ty ident
-  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times")
+  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times within its scope")
   where
     shared_var = Map.lookup ident (sharedVars scope)
     local_var = Map.lookup ident (localVars scope)
@@ -100,18 +98,7 @@ typeSize (ArrayType ty len) = len * (typeSize ty)
 
 
 
---localDecl2instr :: Decl -> [Instruction]
---localDecl2instr (ident, (IntValue val)) =
---  [
---    Load (ImmValue val) regA,
---    Push regA
---  ]
---localDecl2instr (ident, (BoolValue val)) =
---  [
---    Load (ImmValue (if val then 1 else 0)) regA,
---    Push regA
---  ]
---localDecl2instr (ident, (ArrayValue val)) = undefined --TODO
+
 
 -- let t = True;                      Scope = [] [("t", (0, BoolType)]
 --{                                   Scope = [Scope [] [("t", (0, BoolType))] []
@@ -123,9 +110,6 @@ typeSize (ArrayType ty len) = len * (typeSize ty)
 --c=8; set(memloc 0, 8)
 -- pop -> pop
 
--- AST
---type Dict = Map Ident Type
---
 
 
 
@@ -153,17 +137,15 @@ getOpType AddOp = IntType
 getOpType SubOp = IntType
 getOpType MulOp = IntType
 
-getValType :: Scope -> ParseTree.Value -> Type
-getValType _scope (IntValue _) = IntType
-getValType _scope (BoolValue _) = BoolType
-getValType scope (ArrayValue (t: ts)) = ArrayType (getExprType scope t) (length (t:ts))
-getValType _scope (ArrayValue _) = error "Can't create arrays with 0 elements"
-
 getMethodType :: Scope -> Method -> Type
-getMethodType scope (GetMethod array _i) = getInnerArrayType (getExprType scope array)
-getMethodType scope (SetMethod array _i _val) = getInnerArrayType (getExprType scope array)
 getMethodType scope (PrintMethod expr) = getExprType scope expr
 
 getInnerArrayType :: Type -> Type
 getInnerArrayType (ArrayType t _len) = t
 getInnerArrayType _ = error "Is not of type array"
+
+getValType :: Scope -> ParseTree.Value -> Type
+getValType _scope (IntValue _) = IntType
+getValType _scope (BoolValue _) = BoolType
+--getValType scope (ArrayValue (t: ts)) = ArrayType (getExprType scope t) (length (t:ts))
+--getValType _scope (ArrayValue _) = error "Can't create arrays with 0 elements"

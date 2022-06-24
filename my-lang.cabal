@@ -18,12 +18,13 @@ extra-source-files:
 
 library
   exposed-modules:
+      AST
       Compiler
       ExParseExample
       MyCodeGen
       MyParser
       ParseTree
-      TypeChecking
+      Scope
   other-modules:
       Paths_my_lang
   hs-source-dirs:
