@@ -10,7 +10,7 @@ import Sprockell (Instruction)
 data Type
   = IntType
   | BoolType
-  | ArrayType Type Int
+--  | ArrayType Type Int
   deriving (Eq, Show)
 
 -- A map from identifiers to their stackPtr and Type
@@ -65,7 +65,8 @@ openScope scope =
 pushScopeVar :: Scope -> Type -> String -> Scope -- Push a variable onto a scope
 pushScopeVar scope ty ident
   | isNothing shared_var && isNothing local_var = pushScopeVar' scope ty ident
-  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times within its scope")
+  | isJust shared_var = error ("Cannot redeclare shared variable "++ident++".")
+  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times within this scope.")
   where
     shared_var = Map.lookup ident (sharedVars scope)
     local_var = Map.lookup ident (localVars scope)
@@ -93,7 +94,7 @@ sharedDecl2List ((ident, expr) : decls) offset = (ident, (offset, ty)) : sharedD
 typeSize :: Type -> Int
 typeSize IntType = 1
 typeSize BoolType = 1
-typeSize (ArrayType ty len) = len * (typeSize ty)
+--typeSize (ArrayType ty len) = len * (typeSize ty)
 
 
 
@@ -140,9 +141,9 @@ getOpType MulOp = IntType
 getMethodType :: Scope -> Method -> Type
 getMethodType scope (PrintMethod expr) = getExprType scope expr
 
-getInnerArrayType :: Type -> Type
-getInnerArrayType (ArrayType t _len) = t
-getInnerArrayType _ = error "Is not of type array"
+--getInnerArrayType :: Type -> Type
+--getInnerArrayType (ArrayType t _len) = t
+--getInnerArrayType _ = error "Is not of type array"
 
 getValType :: Scope -> ParseTree.Value -> Type
 getValType _scope (IntValue _) = IntType

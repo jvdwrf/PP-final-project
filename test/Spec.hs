@@ -1,6 +1,7 @@
 import Data.Either (isLeft)
 import MyParser
 import ParseTree
+import Compiler
 import Test.Hspec
 import Test.QuickCheck
 import Text.Parsec.Char (char)
@@ -138,7 +139,7 @@ main = hspec $ do
       myParse (fmlP) "if (True) { spawn { } }"
       `shouldSatisfy` isLeft
 
-  describe "type-checking" $ do
+  describe "type-checking for simple expressions" $ do
     it "basic-types1" $ do
       getExprType (newRootScope Map.empty) (fromRight (myParse exprP "10")) `shouldBe` IntType
     it "basic-types2" $ do
@@ -151,6 +152,7 @@ main = hspec $ do
       getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x==2")) `shouldBe` BoolType
     it "complex-types" $ do
       evaluate (getExprType (testScope [] [("x", IntType)]) (fromRight (myParse exprP "x==True"))) `shouldThrow` anyException
+  describe "scope generation" $ do
     it "shared-decl to scope" $ do
       sharedDecl2Scope (testParse sharedBlockP "shared { let x = 1; }")
       `shouldBe`
@@ -159,6 +161,10 @@ main = hspec $ do
       sharedDecl2Scope (testParse sharedBlockP "shared { let y = True; let x = 1; }")
       `shouldBe`
       Scope { sharedVars = Map.fromList [("x",(1,IntType)),("y",(0,BoolType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
+--  describe "type and scope checking for programs" $ do
+--     it "assigning wrong type" $ do
+--          evaluate (compile "let x=5; x=True;") `shouldThrow` anyException --TODO: fix this test. The lhs does throw an error but it is not caught by shouldThrow
+
 
 testParse :: Parser b -> String -> b
 testParse parser str = fromRight (myParse parser str)
