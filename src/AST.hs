@@ -1,4 +1,66 @@
 module AST where
+
+import Sprockell
+
+var =
+  [ [ Load (ImmValue 7) 3,
+      TestAndSet (IndAddr 3),
+      Receive 2,
+      Branch 2 (Rel 4),
+      Nop,
+      Nop,
+      Jump (Rel (-6)),
+
+      Load (ImmValue 6) 3,
+      TestAndSet (IndAddr 3),
+      Receive 2,
+      Branch 2 (Rel 2),
+      Jump (Rel 13),
+      WriteInstr 2 (ImmValue 0),
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Jump (Rel (-16)),
+
+      EndProg
+    ],
+    [ Load (ImmValue 7) 3,
+      TestAndSet (IndAddr 3),
+      Receive 2,
+      Branch 2 (Rel 2),
+      Jump (Rel 13),
+      WriteInstr 2 (ImmValue 0),
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Nop,
+      Jump (Rel (-16)),
+
+      Load (ImmValue 6) 3,
+      TestAndSet (IndAddr 3),
+      Receive 2,
+      Branch 2 (Rel 4),
+      Nop,
+      Nop,
+      Jump (Rel (-6)),
+
+      EndProg
+    ]
+  ]
+
 --
 --import ParseTree
 --import Data.Map (Map)

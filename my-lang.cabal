@@ -20,7 +20,6 @@ library
   exposed-modules:
       AST
       Compiler
-      ExParseExample
       MyCodeGen
       MyParser
       ParseTree

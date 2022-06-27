@@ -94,39 +94,21 @@ sharedDecl2List ((ident, expr) : decls) offset = (ident, (offset, ty)) : sharedD
 typeSize :: Type -> Int
 typeSize IntType = 1
 typeSize BoolType = 1
---typeSize (ArrayType ty len) = len * (typeSize ty)
-
-
-
-
-
-
--- let t = True;                      Scope = [] [("t", (0, BoolType)]
---{                                   Scope = [Scope [] [("t", (0, BoolType))] []
--- let x =0; -> push 0                Scope = [Scope [] [("t", (0, BoolType))] [("x", (1, IntType)
--- print (x) -> print(memloc 0)       Scope = [Scope [] [("t", (0, BoolType))] [("x", (1, IntType)
--- } pop                              Scope = [Scope [] [("t", (0, BoolType))] []
---let c = 7; push 7                   Scope = [] [("t", (0, BoolType), ("c", (1, IntType))]
---let u = 9; push 9
---c=8; set(memloc 0, 8)
--- pop -> pop
-
-
 
 
 getExprType :: Scope ->  Expr -> Type
-getExprType scope (OpExpr op expr1 expr2) = getOpExprType (getExprType scope expr1) op (getExprType scope expr2)
+getExprType scope (OpExpr op expr1 expr2) = getOpExprType op (getExprType scope expr1)  (getExprType scope expr2)
 getExprType scope (ParenExpr expr) = getExprType scope expr
 getExprType scope (ValueExpr val) = getValType scope val
 getExprType scope (IdentExpr ident) = (lookupScopeType scope ident)
 --getExprType scope (BlockExpr _ expr) = getExprType scope expr
 getExprType scope (MethodExpr method) = getMethodType scope method
-
-getOpExprType :: Type -> Op -> Type -> Type
-getOpExprType t1 EqOp t2
+--
+getOpExprType :: Op -> Type -> Type -> Type
+getOpExprType EqOp t1 t2
   | t1 == t2 = BoolType
   | otherwise = error "Can't compare two different types"
-getOpExprType t1 op t2
+getOpExprType op t1 t2
   | t1 == t2 && t1 == IntType = getOpType op
   | otherwise = error "Can't do operation on different types than int"
 
