@@ -1,4 +1,4 @@
-module TypeChecking where
+module Scope where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -10,7 +10,7 @@ import Sprockell (Instruction)
 data Type
   = IntType
   | BoolType
-  | ArrayType Type Int
+--  | ArrayType Type Int
   deriving (Eq, Show)
 
 -- A map from identifiers to their stackPtr and Type
@@ -34,8 +34,6 @@ newRootScope sharedVars =
       pushCount = 0,
       stackPtr = 0
     }
-    
-
 
 lookupScopeType :: Scope -> String -> Type
 lookupScopeType scope ident
@@ -67,7 +65,8 @@ openScope scope =
 pushScopeVar :: Scope -> Type -> String -> Scope -- Push a variable onto a scope
 pushScopeVar scope ty ident
   | isNothing shared_var && isNothing local_var = pushScopeVar' scope ty ident
-  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times")
+  | isJust shared_var = error ("Cannot redeclare shared variable "++ident++".")
+  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times within this scope.")
   where
     shared_var = Map.lookup ident (sharedVars scope)
     local_var = Map.lookup ident (localVars scope)
@@ -95,53 +94,21 @@ sharedDecl2List ((ident, expr) : decls) offset = (ident, (offset, ty)) : sharedD
 typeSize :: Type -> Int
 typeSize IntType = 1
 typeSize BoolType = 1
-typeSize (ArrayType ty len) = len * (typeSize ty)
-
-
-
-
---localDecl2instr :: Decl -> [Instruction]
---localDecl2instr (ident, (IntValue val)) =
---  [
---    Load (ImmValue val) regA,
---    Push regA
---  ]
---localDecl2instr (ident, (BoolValue val)) =
---  [
---    Load (ImmValue (if val then 1 else 0)) regA,
---    Push regA
---  ]
---localDecl2instr (ident, (ArrayValue val)) = undefined --TODO
-
--- let t = True;                      Scope = [] [("t", (0, BoolType)]
---{                                   Scope = [Scope [] [("t", (0, BoolType))] []
--- let x =0; -> push 0                Scope = [Scope [] [("t", (0, BoolType))] [("x", (1, IntType)
--- print (x) -> print(memloc 0)       Scope = [Scope [] [("t", (0, BoolType))] [("x", (1, IntType)
--- } pop                              Scope = [Scope [] [("t", (0, BoolType))] []
---let c = 7; push 7                   Scope = [] [("t", (0, BoolType), ("c", (1, IntType))]
---let u = 9; push 9
---c=8; set(memloc 0, 8)
--- pop -> pop
-
--- AST
---type Dict = Map Ident Type
---
-
 
 
 getExprType :: Scope ->  Expr -> Type
-getExprType scope (OpExpr op expr1 expr2) = getOpExprType (getExprType scope expr1) op (getExprType scope expr2)
+getExprType scope (OpExpr op expr1 expr2) = getOpExprType op (getExprType scope expr1)  (getExprType scope expr2)
 getExprType scope (ParenExpr expr) = getExprType scope expr
-getExprType _scope (ValueExpr val) = getValType val
+getExprType scope (ValueExpr val) = getValType scope val
 getExprType scope (IdentExpr ident) = (lookupScopeType scope ident)
 --getExprType scope (BlockExpr _ expr) = getExprType scope expr
 getExprType scope (MethodExpr method) = getMethodType scope method
-
-getOpExprType :: Type -> Op -> Type -> Type
-getOpExprType t1 EqOp t2
+--
+getOpExprType :: Op -> Type -> Type -> Type
+getOpExprType EqOp t1 t2
   | t1 == t2 = BoolType
   | otherwise = error "Can't compare two different types"
-getOpExprType t1 op t2
+getOpExprType op t1 t2
   | t1 == t2 && t1 == IntType = getOpType op
   | otherwise = error "Can't do operation on different types than int"
 
@@ -153,17 +120,15 @@ getOpType AddOp = IntType
 getOpType SubOp = IntType
 getOpType MulOp = IntType
 
-getValType :: ParseTree.Value -> Type
-getValType (IntValue _) = IntType
-getValType (BoolValue _) = BoolType
-getValType (ArrayValue (t: ts)) = ArrayType (getValType t) (length (t:ts))
-getValType (ArrayValue _) = error "Can't create arrays with 0 elements"
-
 getMethodType :: Scope -> Method -> Type
-getMethodType scope (GetMethod array _i) = getInnerArrayType (getExprType scope array)
-getMethodType scope (SetMethod array _i _val) = getInnerArrayType (getExprType scope array)
 getMethodType scope (PrintMethod expr) = getExprType scope expr
 
-getInnerArrayType :: Type -> Type
-getInnerArrayType (ArrayType t _len) = t
-getInnerArrayType _ = error "Is not of type array"
+--getInnerArrayType :: Type -> Type
+--getInnerArrayType (ArrayType t _len) = t
+--getInnerArrayType _ = error "Is not of type array"
+
+getValType :: Scope -> ParseTree.Value -> Type
+getValType _scope (IntValue _) = IntType
+getValType _scope (BoolValue _) = BoolType
+--getValType scope (ArrayValue (t: ts)) = ArrayType (getExprType scope t) (length (t:ts))
+--getValType _scope (ArrayValue _) = error "Can't create arrays with 0 elements"

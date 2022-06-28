@@ -11,6 +11,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Exception.Base (evaluate)
 import Text.Parsec.String (Parser)
+import Text.Parsec.Error (ParseError)
+import Text.Parsec.Prim (parse)
 
 main :: IO ()
 main = hspec $ do
@@ -20,6 +22,12 @@ main = hspec $ do
 
     it "boolP works1" $ do
       myParse (boolP) "  True" `shouldBe` Right True
+
+  describe "valueP" $ do
+    it "int" $ do
+      myParse valueP "10" `shouldBe` Right (IntValue 10)
+    it "bool" $ do
+      myParse valueP "True" `shouldBe` Right (BoolValue True)
 
   describe "Wsp" $ do
     it "wsP works" $ do
@@ -175,3 +183,6 @@ testScope shared local = foldr (\(ident, ty) scope -> pushScopeVar scope ty iden
 fromRight :: Either a b -> b
 fromRight (Right v) = v
 fromRight _ = error "Either was Left"
+
+myParse :: Parser a -> String -> Either ParseError a
+myParse p = parse (wsP *> p) ""

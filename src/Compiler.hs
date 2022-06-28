@@ -1,6 +1,5 @@
 module Compiler where
 
---
 import qualified Data.Map as Map
 import ParseTree
 import Scope
@@ -11,88 +10,129 @@ type SprilProg = [Instruction]
 
 data SpawnCount = SC Int deriving (Show, Eq)
 
+-- Compile an fml-program from a string into Sprockel code.
+-- This will throw errors for any compilation errors.
 --
+-- The basic idea here is that we compile a bunch of different processes.
+-- Only the first one will initialize all global variables, after which it will
+-- wake the other processes.
+--
+-- Every process will therefore have a custom predetermined start- and end-program
+-- That makes it wait until the moment all variables are initialized, and the process
+-- is spawned by another process.
 compile :: String -> [SprilProg]
-compile str = map (\(n, p) -> initProcess (n == 0) ++ p ++ endProcess) (zip [0 ..] (process : processes))
+compile str = map (\(n, p) -> compileInitProg n rootScope sharedDecl ++ p ++ [EndProg]) numberedProcesses
   where
-    (ParseTree sharedDecl program) = takeRight (myParse fmlP str)
-    takeRight (Right val) = val
-    takeRight (Left val) = error ("Could not parse: " ++ show val)
+    -- First, we parse the entire program
+    (ParseTree sharedDecl program) = takeRight (parseFML str)
+    -- Then we create our root-scope from the shared declarations
     rootScope = sharedDecl2Scope sharedDecl
-    initProcess isInit = compileSharedBlock isInit (sharedVars rootScope) sharedDecl
-
-    endProcess = [EndProg]
+    -- Now we can compile all the root-statements into a bunch of processes
     (process, processes) = compileProcess rootScope (SC 0) program
+    -- And number them, so that we know that only process 0 should initialize the shared variables
+    numberedProcesses = (zip [0 ..] (process : processes))
 
------ PROCESS -----
+-- Creates the initial synchronization around the shared data, based on the number of the process
+compileInitProg :: Int -> Scope -> [Decl] -> SprilProg
+compileInitProg i rootScope sharedDecl = compileSharedBlock (i == 0) (sharedVars rootScope) sharedDecl
+
+-- Compile a single process, without synchronization around a shared-block, or an EndProg.
+-- The first argument returned is this program, and the others are any programs that this process
+-- has spawned.
 compileProcess :: Scope -> SpawnCount -> [RootStat] -> (SprilProg, [SprilProg])
 compileProcess _scope _sc [] = ([], [])
+-- If the statement is a normal statement, then we can just compile the statement, and move on
+-- with the new scope. This statement can not spawn any more programs internally.
 compileProcess scope sc ((RootStatStat stat) : stats) = (prog ++ restProg, restProgs)
   where
     (newScope, prog) = compileStat scope stat
     (restProg, restProgs) = compileProcess newScope sc stats
+-- If the statement is a spawn-statement, things are a little bit more complex.
+-- We return the program inside the do-block + the rest of the program as the first return value.
+-- The second return value are all programs that are spawned from this one. Processes can recursively
+-- spawn more processes.
 compileProcess scope (SC sc) ((SpawnStat spawnStats doStats) : stats) =
   (thisProgFull ++ restProg, spawnProgFull : doProgs ++ spawnProgs ++ restProgs)
   where
+    -- First we compile the spawned process, given a fresh scope and a spawn-count + 1
     (spawnProg, spawnProgs) = compileProcess (newRootScope (sharedVars scope)) (SC (sc + 1)) spawnStats
+    -- Now we add a prefix and postfix to this spawned program, that will wait until it is spawned,
+    -- and notify the spawner when it has exited
     spawnProgFull = compileSpawnedProg (SC sc) ++ spawnProg ++ compileSpawnedExitProg (SC sc)
+    -- We can now compile the current process, this will get the current scope, and a spawn-count equal to
+    -- sc + 1 + amount_of_processes_spawned.
     (thisProg, doProgs) = compileProcess scope (SC (sc + 1 + length spawnProgs)) doStats
+    -- Again, we add a prefix and post-fix
     thisProgFull = compileSpawnProg (SC sc) ++ thisProg ++ compileSpawnExitProg (SC sc)
+    -- and then we continue compiling the code after the do-block
     (restProg, restProgs) = compileProcess scope (SC sc) stats
 
--------- SPAWNING ----------
-
+-- Get the spawn-count shared memory address, used for synchronizing when a process is allowed to spawn.
 scAddrSpawn :: SpawnCount -> Int
 scAddrSpawn (SC sc) = (7 - (sc * 2))
 
+-- Get the spawn-count shared memory address, used for synchronizing when a process exits.
 scAddrExit :: SpawnCount -> Int
 scAddrExit (SC sc) = (7 - (sc * 2) - 1)
 
+-- The program that runs before a process is spawned on the spawner-side
 compileSpawnProg :: SpawnCount -> SprilProg
-compileSpawnProg sc = syncOnActive (scAddrSpawn sc)
+compileSpawnProg sc = activeBarrier (scAddrSpawn sc)
 
+-- The program that runs before a process is spawned on the spawned-side
 compileSpawnedProg :: SpawnCount -> SprilProg
-compileSpawnedProg sc = syncOnPassive (scAddrSpawn sc)
+compileSpawnedProg sc = passiveBarrier (scAddrSpawn sc)
 
+-- The program that runs after a process is spawned on the spawned-side
 compileSpawnedExitProg :: SpawnCount -> SprilProg
-compileSpawnedExitProg sc = syncOnActive (scAddrExit sc)
+compileSpawnedExitProg sc = activeBarrier (scAddrExit sc)
 
+-- The program that runs after a process is spawned on the spawner-side
 compileSpawnExitProg :: SpawnCount -> SprilProg
-compileSpawnExitProg sc = syncOnPassive (scAddrExit sc)
+compileSpawnExitProg sc = passiveBarrier (scAddrExit sc)
 
-syncOnPassive :: Int -> SprilProg
-syncOnPassive addr =
+-- Synchronize on a given global variable in memory.
+-- This will wait until the global memory is set, and only then continue
+-- It is only valid for 2 processes, and will not work for more
+passiveBarrier :: Int -> SprilProg
+passiveBarrier addr =
   [ Load (ImmValue addr) regB,
     TestAndSet (IndAddr regB), -- Try and set addr to 1
     Receive regA,
-    Branch regA (Rel 2), -- Check if this was succesful
-    Jump (Rel (10 + 4)), -- Not succesful, which means that we are allowed to spawn now
+    Branch regA (Rel 2), -- Check if this was successful
+    Jump (Rel (10 + 4)), -- Not successful, which means that we are allowed to spawn now
     Load (ImmValue 0) regA,
-    WriteInstr regA (IndAddr regB) -- Succesful, so we reset it to 0
+    WriteInstr regA (IndAddr regB) -- Successful, so we reset it to 0
   ]
     ++ nop 10 -- wait
     ++ [Jump (Rel (-10 - 7))] -- and try again
 
-syncOnActive :: Int -> SprilProg
-syncOnActive addr =
+-- Synchronize on a given global variable in memory.
+-- This will set the global memory, and then continue.
+-- It is only valid for 2 processes, and will not work for more
+activeBarrier :: Int -> SprilProg
+activeBarrier addr =
   [ Load (ImmValue addr) regB,
     TestAndSet (IndAddr regB), -- Try to set addr to 1
     Receive regA,
     Branch regA (Rel 4) -- Check if this was successful
   ]
-    ++ nop 2 -- It was not succesful, wait
+    ++ nop 2 -- It was not successful, wait
     ++ [Jump (Rel (-2 - 4))] -- and try again
 
+-- Insert x nop operations
 nop :: Int -> SprilProg
 nop i = [Nop | _ <- [1 .. i]]
 
---------- SHARED -------------
-
+-- Compiles the shared-block, given at the start of a program.
+--
+-- This will synchronize all processes, and make sure that only one process actually initializes the variables.
+-- All other processes will wait on this process to be finished until starting their own programs.
 compileSharedBlock :: Bool -> ScopeVars -> [Decl] -> SprilProg
 compileSharedBlock isInit vars sharedDecls =
   if isInit
     then
-      compileSharedBlock' list
+      compileSharedBlockRec list
         ++ [ Load (ImmValue 0) regB,
              TestAndSet (IndAddr regB),
              Receive regA,
@@ -111,17 +151,20 @@ compileSharedBlock isInit vars sharedDecls =
   where
     list = (zipWith (\(_, (a, b)) c -> (a, b, c)) (Map.toList vars) sharedDecls)
 
-compileSharedBlock' :: [(Int, Type, Decl)] -> SprilProg
-compileSharedBlock' [] = []
-compileSharedBlock' ((i, _t, (_, expr)) : rest) =
+-- Recursive inner part of compileSharedBlock
+compileSharedBlockRec :: [(Int, Type, Decl)] -> SprilProg
+compileSharedBlockRec [] = []
+compileSharedBlockRec ((i, _t, (_, expr)) : rest) =
   compileExpr (newRootScope Map.empty) expr
     ++ [ Pop regA,
          Load (ImmValue ((i + 1) * 2)) regB,
          WriteInstr regA (IndAddr regB)
        ]
-    ++ compileSharedBlock' rest
+    ++ compileSharedBlockRec rest
 
-------------- STAT ---------------
+-- Compile a multiple statements.
+--
+-- This may modify the scope, since statements contain declarations.
 compileStats :: Scope -> [Stat] -> (Scope, SprilProg)
 compileStats scope [] = (scope, [])
 compileStats scope (stat : stats) = (scope'', thisStatProg ++ restStatProg)
@@ -129,6 +172,9 @@ compileStats scope (stat : stats) = (scope'', thisStatProg ++ restStatProg)
     (scope', thisStatProg) = compileStat scope stat
     (scope'', restStatProg) = compileStats scope' stats
 
+-- Compile a single statement.
+--
+-- The returned scope will be the new scope, after any assignment.
 compileStat :: Scope -> Stat -> (Scope, SprilProg)
 compileStat scope (DeclStat decl) = compileLocalDecl scope decl
 compileStat scope (ExprStat expr) = (scope, compileExpr scope expr ++ [Pop regA])
@@ -228,11 +274,16 @@ compileAssignStat' scope ident expr = exprProg ++ prog (lookupScopeLoc scope ide
       ]
 
 compileLocalDecl :: Scope -> Decl -> (Scope, SprilProg)
-compileLocalDecl scope (ident, expr) = (newScope, prog)
+compileLocalDecl scope (ident, expr) = (newScope, prog (lookupScopeLoc newScope ident))
   where
     ty = getExprType scope expr
     newScope = pushScopeVar scope ty ident
-    prog = compileExpr scope expr
+    prog (LocalLoc addr) =
+      compileExpr scope expr
+        ++ [ Pop regA,
+             Store regA (ptr addr)
+           ]
+    prog (SharedLoc _) = error "Can't redeclare shared variable"
 
 compileExpr :: Scope -> Expr -> SprilProg
 compileExpr scope (ParenExpr expr) =
@@ -331,6 +382,12 @@ compileOp EqOp _ =
     Compute Equal regA regB regA,
     Push regA
   ]
+compileOp NeOp _ =
+  [ Pop regB,
+    Pop regA,
+    Compute NEq regA regB regA,
+    Push regA
+  ]
 
 ptr :: Int -> AddrImmDI
 ptr num = DirAddr num
@@ -363,3 +420,7 @@ myShow2 (instrs, s) =
     --                    (show $ replyChnls s)
     --                    (show $ requestFifo s)
     (show $ sharedMem s)
+
+takeRight :: Show a => Either a b -> b
+takeRight (Right val) = val
+takeRight (Left val) = error ("Could not parse: " ++ show val)
