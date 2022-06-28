@@ -51,7 +51,6 @@ A piece of code that returns a value.
 
     Expr3 = 
         | '(' Expr ')'                  // ParenExpr
-        | '{' (Statement)* Expr '}'     // BlockExpr
         | Method                        // MethodExpr
         | Ident                         // IdentExpr
         | Value                         // ValueExpr

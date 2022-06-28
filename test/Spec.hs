@@ -1,18 +1,15 @@
 import Data.Either (isLeft)
-import MyParser
 import ParseTree
-import Compiler
 import Test.Hspec
-import Test.QuickCheck
 import Text.Parsec.Char (char)
 import Text.Parsec.Combinator (sepEndBy1)
 import Scope
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Exception.Base (evaluate)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim (parse)
+import TypeChecking
 
 main :: IO ()
 main = hspec $ do
@@ -164,11 +161,11 @@ main = hspec $ do
     it "shared-decl to scope" $ do
       sharedDecl2Scope (testParse sharedBlockP "shared { let x = 1; }")
       `shouldBe`
-      Scope { sharedVars = Map.fromList [("x", (0, IntType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
+      Scope { sharedVars = Map.fromList [("x", (0, IntType))], localVars = Map.empty, stackPtr = 0 }
     it "shared-decl to scope larger example" $ do
       sharedDecl2Scope (testParse sharedBlockP "shared { let y = True; let x = 1; }")
       `shouldBe`
-      Scope { sharedVars = Map.fromList [("x",(1,IntType)),("y",(0,BoolType))], localVars = Map.empty, pushCount = 0, stackPtr = 0 }
+      Scope { sharedVars = Map.fromList [("x",(1,IntType)),("y",(0,BoolType))], localVars = Map.empty, stackPtr = 0 }
 --  describe "type and scope checking for programs" $ do
 --     it "assigning wrong type" $ do
 --          evaluate (compile "let x=5; x=True;") `shouldThrow` anyException --TODO: fix this test. The lhs does throw an error but it is not caught by shouldThrow

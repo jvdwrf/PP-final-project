@@ -1,0 +1,32 @@
+// Declare the accounts
+shared {
+    let account1 = 100; // Account 1 starts with 100
+    let account2 = 50; // Account 2 starts with 50
+}
+
+
+spawn {
+//  acquire both accounts
+    acquire account1 {
+        print(1);
+        sleep(1000);
+        acquire account2 {
+            print(2);
+        }
+    }
+} do {
+    // acquire both accounts
+    acquire account2 {
+        print(2);
+        sleep(1000);
+        acquire account1 {
+            print(1);
+        }
+    }
+}
+
+// EXPECTED OUTPUT:
+// This should deadlock, and never finish.
+//
+// Sprockel 0 says 2
+// Sprockel 1 says 1

@@ -70,6 +70,8 @@ data Op
 data Method
   = -- print an expression: `print(x)`
     PrintMethod Expr
+  | -- sleep for x cycles: `sleep(10)`
+    SleepMethod Expr
   deriving (Show, Eq)
 
 -- An immediate value
@@ -151,7 +153,9 @@ statP =
 
 -- Parse a single method
 methodP :: Parser Method
-methodP = (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
+methodP =
+  try (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
+    <|> (SleepMethod <$> (stringP "sleep" *> charP '(' *> exprP) <* charP ')')
 
 -- Parse a single expression
 -- This has precedence level 0
@@ -204,7 +208,6 @@ integerP = read <$> (many1 digit <* wsP)
 boolP :: Parser Bool
 boolP = (True <$ stringP "True") <|> (False <$ stringP "False")
 
-
 -- Helper for parsing strings with whitespace behind
 stringP :: String -> Parser String
 stringP s = string s <* wsP
@@ -215,8 +218,8 @@ charP c = char c <* wsP
 
 -- Helper for parsing whitespace and comments
 wsP :: Parser ()
-wsP = () <$ many (() <$ space <|> commentP)
+wsP = () <$ many (try (() <$ space) <|> commentP)
 
 -- Parse a single-line comment: `let x = 10; // this is a comment \n x = x+1`
 commentP :: Parser ()
-commentP = () <$ (string "//" *> noneOf ['\n'])
+commentP = () <$ (string "//" *> many (noneOf ['\n']))

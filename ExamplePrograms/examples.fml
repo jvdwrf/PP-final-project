@@ -1,0 +1,46 @@
+// Declare the accounts
+shared {
+    let account1 = 100; // Account 1 starts with 100
+    let account2 = 50; // Account 2 starts with 50
+}
+
+
+spawn {
+//  acquire both accounts
+    acquire account1 {
+        acquire account2 {
+            // And transfer 20 from 2 to 1
+            print(0);
+            account2 = account2 - 20;
+            sleep(1000000);
+            account1 = account1 + 20;
+            print(0);
+        }
+    }
+} do {
+    // acquire both accounts
+    acquire account1 {
+        acquire account2 {
+            // And transfer 20 from 2 to 1
+            print(1);
+            account2 = account2 - 10;
+            sleep(1000000);
+            account1 = account1 + 10;
+            print(1);
+        }
+    }
+}
+
+// Now account 1 should have 100 + 20 + 10 = 130
+acquire account1 {
+    print(account1);
+}
+
+// And account 2 should have 50 - 20 - 10 = 20
+acquire account2 {
+    print(account2);
+}
+
+// EXPECTED OUTPUT:
+// Sprockel 0 says 130
+// Sprockel 0 says 20

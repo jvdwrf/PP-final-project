@@ -15,22 +15,25 @@ type ScopeVars = Map String (Int, Type)
 data VarLoc = LocalLoc Int | SharedLoc Int
 
 data Scope = Scope
-  { sharedVars :: ScopeVars,  -- Can only be declared once, and are copied over to a new scope as-is.
-    localVars :: ScopeVars,   -- Can be declared dynamically, and are copied over to a new scope as-is.
-    pushCount :: Int,         -- The amount of times a variable has been push in the current scope. set to 0 when opening a new scope.
-    stackPtr :: Int           -- The place on the stack where the next variable will be set. Copied over to a new scope as-is.
-  } deriving (Eq, Show)
+  { sharedVars :: ScopeVars, -- Can only be declared once, and are copied over to a new scope as-is.
+    localVars :: ScopeVars, -- Can be declared dynamically, and are copied over to a new scope as-is.
+    stackPtr :: Int -- The place on the stack where the next variable will be set. Copied over to a new scope as-is.
+  }
+  deriving (Eq, Show)
 
--- Create a new root-scope, given all shared variables that have been declared
+-- Create a new root-scope, given all shared variables that have been declared.
+-- This is used when a new process is spawned, so that it cannot access the local variables
+-- of the other process.
 newRootScope :: ScopeVars -> Scope
 newRootScope shared =
   Scope
     { sharedVars = shared,
       localVars = Map.empty,
-      pushCount = 0,
       stackPtr = 0
     }
 
+-- Get the type of the (local or shared) ident.
+-- If the ident does not exist, this will throw an error.
 lookupScopeType :: Scope -> String -> Type
 lookupScopeType scope ident
   | isJust maybeLocal = snd (fromJust maybeLocal)
@@ -40,43 +43,27 @@ lookupScopeType scope ident
     maybeLocal = Map.lookup ident (localVars scope)
     maybeShared = Map.lookup ident (sharedVars scope)
 
+-- Get the location of the ident, either local or shared.
+-- If the ident does not exist, this will throw an error.
 lookupScopeLoc :: Scope -> String -> VarLoc
 lookupScopeLoc scope ident
   | isJust maybeLocal = LocalLoc (fst (fromJust maybeLocal))
   | isJust maybeShared = SharedLoc (fst (fromJust maybeShared))
-  | otherwise = error ("Variable "++ident++" not in scope.")
+  | otherwise = error ("Variable " ++ ident ++ " not in scope.")
   where
     maybeLocal = Map.lookup ident (localVars scope)
     maybeShared = Map.lookup ident (sharedVars scope)
 
-openScope :: Scope -> Scope
-openScope scope =
-  Scope
-    { sharedVars = (sharedVars scope),
-      localVars = (localVars scope),
-      pushCount = 0,
-      stackPtr = (stackPtr scope)
-    }
-
+-- Push a new variable onto the current scope.
+-- + If the variable overrides a shared variable, this will throw an error.
+-- + If the variable overrides a local variable, the previous one will go out of scope.
+-- + If the variable does not exist, it will be created.
 pushScopeVar :: Scope -> Type -> String -> Scope -- Push a variable onto a scope
 pushScopeVar scope ty ident
-  | isNothing shared_var && isNothing local_var = pushScopeVar' scope ty ident
-  | isJust shared_var = error ("Cannot redeclare shared variable "++ident++".")
-  | otherwise = pushScopeVar' scope ty ident
---  | otherwise = error ("Variable " ++ ident ++ " is declared multiple times within this scope.")
-  where
-    shared_var = Map.lookup ident (sharedVars scope)
-    local_var = Map.lookup ident (localVars scope)
-
-pushScopeVar' :: Scope -> Type -> String -> Scope
-pushScopeVar' scope ty ident =
-  Scope
-    { sharedVars = (sharedVars scope),
-      localVars = Map.insert ident ((stackPtr scope), ty) (localVars scope),
-      pushCount = ((pushCount scope) + 1),
-      stackPtr = (stackPtr scope) + 1
-    }
-
-
-
-
+  | isJust (Map.lookup ident (sharedVars scope)) = error ("Cannot redeclare shared variable " ++ ident ++ ".")
+  | otherwise =
+    Scope
+      { sharedVars = (sharedVars scope),
+        localVars = Map.insert ident ((stackPtr scope), ty) (localVars scope),
+        stackPtr = (stackPtr scope) + 1
+      }

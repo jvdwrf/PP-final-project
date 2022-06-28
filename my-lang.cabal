@@ -19,8 +19,6 @@ extra-source-files:
 library
   exposed-modules:
       Compiler
-      MyCodeGen
-      MyParser
       ParseTree
       Scope
       TypeChecking

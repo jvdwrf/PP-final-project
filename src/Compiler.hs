@@ -68,8 +68,6 @@ compileProcess scope (SC sc) ((SpawnStat spawnStats doStats) : stats) =
     -- and then we continue compiling the code after the do-block
     (restProg, restProgs) = compileProcess scope (SC sc) stats
 
-
-
 -- The program that runs before a process is spawned on the spawner-side
 compileSpawnProg :: SpawnCount -> SprilProg
 compileSpawnProg sc = compileActiveBarrier (scAddrSpawn sc)
@@ -295,6 +293,7 @@ compileLocalDecl scope (ident, expr) = (newScope, prog (lookupScopeLoc newScope 
     prog (SharedLoc _) = error "Can't redeclare shared variable"
 
 -- Compile a single expression
+-- The result of the expression is always pushed to the stack.
 compileExpr :: Scope -> Expr -> SprilProg
 compileExpr scope (ParenExpr expr) =
   compileExpr scope expr
@@ -307,7 +306,8 @@ compileExpr scope (IdentExpr ident) =
 compileExpr scope (MethodExpr method) =
   compileMethod scope method
 
--- Compile a single operator expression
+-- Pushes expr1, expr 2 on the stack, and then computes the operator and pushes
+-- that back on the stack.
 compileOpExpr :: Scope -> Op -> Expr -> Expr -> SprilProg
 compileOpExpr scope op e1 e2
   | exprType == getOpExprType op (getExprType scope e1) (getExprType scope e2) =
@@ -318,7 +318,7 @@ compileOpExpr scope op e1 e2
   where
     exprType = getOpExprType op (getExprType scope e1) (getExprType scope e2)
 
--- Compile a single method
+-- pushes the value of the method to the stack.
 compileMethod :: Scope -> Method -> SprilProg --optional TODO: print "True" for 1 etc
 compileMethod scope (PrintMethod expr) =
   compileExpr scope expr
@@ -326,8 +326,19 @@ compileMethod scope (PrintMethod expr) =
          WriteInstr regA numberIO,
          Push regA
        ]
+compileMethod scope (SleepMethod expr) =
+  compileExpr scope expr
+    ++ [ Pop regA,
+         Push regA,
+         Store regB (ImmValue 1),
 
--- Compile a single identifier
+         Compute Lt regA regB regC,
+         Branch regC (Rel 3), -- if bigger than 1
+         Compute Sub regA regB regA, -- subtract
+         Jump (Rel (-3))
+       ]
+
+-- Pushes the value of the identifier to the stack.
 compileIdentExpr :: Scope -> Ident -> SprilProg
 compileIdentExpr scope ident = prog (lookupScopeLoc scope ident)
   where
@@ -342,8 +353,7 @@ compileIdentExpr scope ident = prog (lookupScopeLoc scope ident)
         Push regA
       ]
 
-
-
+-- Pushes the immediate value to the stack
 compileValueExpr :: ParseTree.Value -> SprilProg
 compileValueExpr (IntValue int) =
   [ Load (ImmValue int) regA,
@@ -354,6 +364,7 @@ compileValueExpr (BoolValue bool) =
     Push regA
   ]
 
+-- Pops twice from the stack, and pushes the result back to the stack
 compileOp :: Op -> Type -> SprilProg
 compileOp AddOp _ =
   [ Pop regB,
@@ -398,45 +409,28 @@ compileOp NeOp _ =
     Push regA
   ]
 
-ptr :: Int -> AddrImmDI
-ptr num = DirAddr num
-
------ SHARED ------
-
---compileSharedBlock :: ScopeVars -> [Decl] -> SprilProg
---compileSharedBlock vars sharedBlock = [] ++ compileSharedVarCreation (zip (Map.toList vars) sharedBlock) ++ []
---
---compileSharedVarCreation :: [((String, (Int, Type)), Decl)] -> SprilProg
---compileSharedVarCreation [] = []
---compileSharedVarCreation (((ident, (ptr, ty)), (_ident, expr)) : decls) = instructions ++ compileSharedVarCreation decls
---  where
---    size = typeSize ty
---    instructions =
---      compileExpr (newRootScope Map.empty) expr -- result of expr is in regA
---        ++ [ WriteInstr regA (IndAddr i) | i <- [ptr .. ptr + size]
---           ]
-
+-- Run with custom debug
 runDebug :: [SprilProg] -> IO ()
 runDebug = runWithDebugger (debuggerSimplePrint (\x -> myShow2 x))
 
 myShow2 :: DbgInput -> String
 myShow2 (instrs, s) =
   printf
-    "instrs: %s - states: %s - shared %s" -- \nsprStates:\n%s\nrequests: %s\nreplies: %s\nrequestFifo: %s\nsharedMem: %s\n"
+    "instrs: %s - states: %s - shared %s"
     (show instrs)
     (unlines $ map show $ sprStates s)
-    --                    (show $ requestChnls s)
-    --                    (show $ replyChnls s)
-    --                    (show $ requestFifo s)
     (show $ sharedMem s)
 
+-- Helper function to take the right, or return an error.
 takeRight :: Show a => Either a b -> b
 takeRight (Right val) = val
 takeRight (Left val) = error ("Could not parse: " ++ show val)
 
+-- Get the address to the shared memory data
 sharedAddr :: Int -> AddrImmDI
 sharedAddr addr = ImmValue ((addr + 1) * 2)
 
+-- Get the address to the shared memory lock
 sharedLockAddr :: Int -> AddrImmDI
 sharedLockAddr addr = ImmValue ((addr + 1) * 2 + 1)
 
@@ -447,3 +441,7 @@ scAddrSpawn (SC sc) = (7 - (sc * 2))
 -- Get the spawn-count shared memory address, used for synchronizing when a process exits.
 scAddrExit :: SpawnCount -> Int
 scAddrExit (SC sc) = (7 - (sc * 2) - 1)
+
+-- helper function for creating a direct address.
+ptr :: Int -> AddrImmDI
+ptr num = DirAddr num
