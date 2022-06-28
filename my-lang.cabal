@@ -23,6 +23,7 @@ library
       MyParser
       ParseTree
       Scope
+      TypeChecking
   other-modules:
       Paths_my_lang
   hs-source-dirs:
