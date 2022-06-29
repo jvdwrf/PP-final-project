@@ -36,8 +36,8 @@ packages:
 # forks / in-progress versions pinned to a git hash. For example:
 #
 extra-deps:
-- github: bobismijnnaam/sprockell
-  commit: 167ad247356ba4f0a236d11d6093aebd36ed62e7
+- github: jvdwrf/sprockell
+  commit: 60fcb68e82eee5cf56d1bf27cc4cfd4d4c9068e7
 #
 # extra-deps: []
 

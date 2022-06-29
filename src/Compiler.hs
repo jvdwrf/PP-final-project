@@ -319,7 +319,7 @@ compileOpExpr scope op e1 e2
     exprType = getOpExprType op (getExprType scope e1) (getExprType scope e2)
 
 -- pushes the value of the method to the stack.
-compileMethod :: Scope -> Method -> SprilProg --optional TODO: print "True" for 1 etc
+compileMethod :: Scope -> Method -> SprilProg
 compileMethod scope (PrintMethod expr) =
   compileExpr scope expr
     ++ [ Pop regA,
@@ -331,10 +331,9 @@ compileMethod scope (SleepMethod expr) =
     ++ [ Pop regA,
          Push regA,
          Store regB (ImmValue 1),
-
          Compute Lt regA regB regC,
-         Branch regC (Rel 3), -- if bigger than 1
-         Compute Sub regA regB regA, -- subtract
+         Branch regC (Rel 3),
+         Compute Sub regA regB regA,
          Jump (Rel (-3))
        ]
 
@@ -436,11 +435,11 @@ sharedLockAddr addr = ImmValue ((addr + 1) * 2 + 1)
 
 -- Get the spawn-count shared memory address, used for synchronizing when a process is allowed to spawn.
 scAddrSpawn :: SpawnCount -> Int
-scAddrSpawn (SC sc) = (7 - (sc * 2))
+scAddrSpawn (SC sc) = (31 - (sc * 2))
 
 -- Get the spawn-count shared memory address, used for synchronizing when a process exits.
 scAddrExit :: SpawnCount -> Int
-scAddrExit (SC sc) = (7 - (sc * 2) - 1)
+scAddrExit (SC sc) = (31 - (sc * 2) - 1)
 
 -- helper function for creating a direct address.
 ptr :: Int -> AddrImmDI
