@@ -1,0 +1,6 @@
+print(10)
+
+// EXPECTED OUTPUT:
+// Could not parse: (line 1, column 6):
+// unexpected "("
+// expecting space, "//" or "="

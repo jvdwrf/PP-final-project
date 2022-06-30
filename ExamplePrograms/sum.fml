@@ -1,0 +1,12 @@
+let sum = 0;
+
+let x = 0;
+while x<15 {
+   sum = sum+x;
+   x = x+1;
+}
+
+print(sum);
+
+// EXPECTED_OUTPUT:
+// Sprockel 0 says 105

@@ -1,0 +1,8 @@
+if x = 10 {
+    print(10);
+}
+
+// EXPECTED OUTPUT
+// Could not parse: (line 1, column 4):
+// unexpected "x"
+// expecting space, "//" or "="

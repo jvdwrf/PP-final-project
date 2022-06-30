@@ -1,0 +1,13 @@
+let x = 0;
+
+while x < 5 {
+    print(x);
+    x = x + 1;
+}
+
+// EXPECTED OUTPUT:
+// Sprockell 0 says 0
+// Sprockell 0 says 1
+// Sprockell 0 says 2
+// Sprockell 0 says 3
+// Sprockell 0 says 4

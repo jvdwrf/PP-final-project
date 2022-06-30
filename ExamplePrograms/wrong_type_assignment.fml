@@ -1,0 +1,5 @@
+let x = 10;
+x = True;
+
+// EXPECTED OUTPUT
+// Cannot assign expression of type BoolType to variable x of type IntType.

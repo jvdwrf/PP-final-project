@@ -1,0 +1,8 @@
+shared {
+    let x = True;
+}
+
+let x = True;
+
+// EXPECTED OUTPUT:
+// Cannot redeclare shared variable x.

@@ -1,14 +1,14 @@
-name:                my-lang
-version:             0.1.0.0
+name:                fml
+version:             1.0
 license:             MIT
-author:              "My Name"
-maintainer:          "my@address.here"
-copyright:           "2022 Author name here"
+author:              "Paul Blum & Jasper van der Werf"
+maintainer:          "unmaintained@unmaintained"
+copyright:           "2022 Paul Blum & Jasper van der Werf"
 
 extra-source-files:
 - README.md
 
-description:         Implementation of MyLang.
+description:         Implementation of FML.
 
 dependencies:
 - base >= 4.7 && < 5
@@ -31,7 +31,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - my-lang
+    - fml
 
 tests:
   my-lang-test:
@@ -42,4 +42,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - my-lang
+    - fml

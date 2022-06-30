@@ -5,15 +5,14 @@ A Program that can be parsed
 
 ## Process
 
-    Process = ( ProcessStatement )*
+    Process = ( RootStatement )*
 
-## ProcessStatement
+## RootStatement
     
-    ProcessStatement =
+    RootStatement =
         | 'spawn' '{' Process '}' ( 'do' '{' Process '}' )?
         | Statement
 
-    
 
 ## SharedVars 
 
@@ -38,6 +37,7 @@ A piece of code that returns a value.
         | Expr '<' Expr1        // LtExpr
         | Expr '>' Expr1        // GtExpr
         | Expr '==' Expr1       // EqExpr
+        | Expr '!=' Expr1
         | Expr1                 //
 
     Expr1 = 
@@ -60,8 +60,7 @@ A built-in method call
 
     Method 
         = 'print' '(' Expr ')'
-        | 'get' '(' Expr, Expr ')'               // get([3,5,6], 1)
-        | 'set' '(' Expr ',' Expr, ',' Expr ')'  // set(array, 3, print(value))
+        | 'sleep' '(' Expr ')'
 
 
 ## Ident
@@ -70,12 +69,11 @@ An identifier, eg a variable name
     Ident = [a..Z] ([a..Z] | [0..9])*
 
 ## Value
-A value that can be immediately resolved/type-checked. 10 | [1, 3] | True
+A value that can be immediately resolved/type-checked. 10 | True
 
     Value
         = Integer
         | Boolean
-        | Array
 
 ## Boolean
 
@@ -83,20 +81,13 @@ A value that can be immediately resolved/type-checked. 10 | [1, 3] | True
         = 'True'
         | 'False'
 
-
 ## Integer
 
     Integer = ( [0..9] )+
-
-
-## Array
-
-    Array = '[' (Value ',')* (Value)? ']'
-
 
 ## Whitespace
 
     Whitespace = 
         | ' '
-        | '\n\
+        | '\n'
         | '//' ( ('\n')! )* '\n'

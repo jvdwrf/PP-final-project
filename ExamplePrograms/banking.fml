@@ -2,21 +2,15 @@
 shared {
     let account1 = 100; // Account 1 starts with 100
     let account2 = 50; // Account 2 starts with 50
-    let account3 = 50; // Account 2 starts with 50
-    let account4 = 50; // Account 2 starts with 50
 }
-
 
 spawn {
 //  acquire both accounts
     acquire account1 {
         acquire account2 {
             // And transfer 20 from 2 to 1
-            print(0);
             account2 = account2 - 20;
-            sleep(1000); // doing expensive math, and synchronizing with other things
             account1 = account1 + 20;
-            print(0);
         }
     }
 } do {
@@ -24,11 +18,8 @@ spawn {
     acquire account1 {
         acquire account2 {
             // And transfer 20 from 2 to 1
-            print(1);
             account2 = account2 - 10;
-            sleep(1000); // doing expensive math, and synchronizing with other things
             account1 = account1 + 10;
-            print(1);
         }
     }
 }

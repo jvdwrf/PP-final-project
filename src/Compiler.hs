@@ -224,10 +224,6 @@ compileWhileStatChecked scope condExpr stats =
     (_, prog) = compileStats scope stats
     condProg = compileExpr scope condExpr
 
----- Pop all variables from the stack that are now out of scope
---popEndScope :: Scope -> SprilProg
---popEndScope scope = [(Pop regA) | _ <- [0 .. pushCount scope]]
-
 -- Compile a single if-statement
 compileIfStat :: Scope -> Expr -> [Stat] -> [Stat] -> SprilProg
 compileIfStat scope condExpr ifStats elseStats =
