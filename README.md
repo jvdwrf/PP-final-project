@@ -32,7 +32,7 @@ For unit tests, run:
 stack test
 ```
 
-Manual tests can be run using:
+For manual tests, run:
 
 ```
 stack run -- ExamplePrograms/<filename>.fml

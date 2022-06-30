@@ -1,11 +1,11 @@
 module Compiler where
-
 import qualified Data.Map as Map
 import ParseTree
 import Scope
 import Sprockell
 import Text.Printf (printf)
 import TypeChecking
+
 
 type SprilProg = [Instruction]
 

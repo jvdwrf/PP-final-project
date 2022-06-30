@@ -52,42 +52,57 @@ data Expr
 data Op
   = -- Add: '+'
     AddOp
-    -- Subtract: '-'
-  | SubOp
-    -- Multiply: '*'
-  | MulOp
-    -- Greater than: '>'
-  | GtOp
-    -- Less than: '<'
-  | LtOp
-    -- Equal: '=='
-  | EqOp
-    -- Not equal: `-='
-  | NeOp
+  | -- Subtract: '-'
+    SubOp
+  | -- Multiply: '*'
+    MulOp
+  | -- Greater than: '>'
+    GtOp
+  | -- Less than: '<'
+    LtOp
+  | -- Equal: '=='
+    EqOp
+  | -- Not equal: `!='
+    NeOp
   deriving (Show, Eq)
 
 -- A method
 data Method
-  = PrintMethod Expr
+  = -- print an expression: `print(x)`
+    PrintMethod Expr
+  | -- sleep for x cycles: `sleep(10)`
+    SleepMethod Expr
   deriving (Show, Eq)
 
--- An immediate value: `10`
+-- An immediate value
 data Value
-  = IntValue Int
-  | BoolValue Bool
+  = -- An integer: `10`
+    IntValue Int
+  | -- A boolean: `True`
+    BoolValue Bool
   deriving (Show, Eq)
 
--- A root-statement. This can be either
+-- A root-statement. This can be either a normal statement, or a spawn-statement
 data RootStat
-  = RootStatStat Stat
-  | SpawnStat [RootStat] [RootStat]
+  = -- a normal statement: `let x = 10;
+    RootStatStat Stat
+  | -- A spawn statement: spawn { let x = 10; } do { let x = 11; }
+    SpawnStat [RootStat] [RootStat]
   deriving (Show, Eq)
 
+-- An identifier, which is just a string.
 type Ident = String
 
+-- Parses a string, and returns either a parse-tree, or an error
+parseFML :: String -> Either ParseError ParseTree
+parseFML = parse (wsP *> fmlP) ""
+
+-- The entrypoint for parsing data into a parse-tree. This can compile an entire program, and will result
+-- in error messages.
 fmlP :: Parser ParseTree
 fmlP = ParseTree <$> option [] (try sharedBlockP) <*> option [] (many rootStatP)
 
+-- Parse a shared block of declarations
 sharedBlockP :: Parser [Decl]
 sharedBlockP =
   ( (stringP "shared" *> charP '{')
@@ -95,6 +110,7 @@ sharedBlockP =
   )
     <* charP '}'
 
+-- Parse a single root statement
 rootStatP :: Parser RootStat
 rootStatP =
   try
@@ -107,10 +123,11 @@ rootStatP =
     )
     <|> RootStatStat <$> statP
 
+-- Parse a single declaration
 declP :: Parser Decl
 declP = (,) <$> ((stringP "let " *> identP) <* charP '=') <*> exprP <* charP ';'
 
---myParse statP "if x<6 {}"
+-- Parse a single statement
 statP :: Parser Stat
 statP =
   DeclStat <$> declP
@@ -134,9 +151,14 @@ statP =
       )
     <|> AssignStat <$> (identP <* charP '=') <*> (exprP <* charP ';')
 
+-- Parse a single method
 methodP :: Parser Method
-methodP = (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
+methodP =
+  try (PrintMethod <$> (stringP "print" *> charP '(' *> exprP) <* charP ')')
+    <|> (SleepMethod <$> (stringP "sleep" *> charP '(' *> exprP) <* charP ')')
 
+-- Parse a single expression
+-- This has precedence level 0
 exprP :: Parser Expr
 exprP = chainl1 exprP' opP
   where
@@ -144,7 +166,9 @@ exprP = chainl1 exprP' opP
       (OpExpr LtOp <$ charP '<')
         <|> (OpExpr GtOp <$ charP '>')
         <|> (OpExpr EqOp <$ stringP "==")
+        <|> (OpExpr NeOp <$ stringP "!=")
 
+-- Expression parser with precedence level 1
 exprP' :: Parser Expr
 exprP' = chainl1 exprP'' opP
   where
@@ -152,48 +176,50 @@ exprP' = chainl1 exprP'' opP
       (OpExpr AddOp <$ charP '+')
         <|> (OpExpr SubOp <$ charP '-')
 
+-- Expression parser with precedence level 2
 exprP'' :: Parser Expr
 exprP'' = chainl1 exprP''' opP
   where
     opP = (OpExpr MulOp <$ charP '*')
 
+-- Expression parser with precedence level 3
 exprP''' :: Parser Expr
 exprP''' =
-  --  = BlockExpr <$> (charP '{' *> many (try statP)) <*> exprP <* charP '}'
   ParenExpr <$> (charP '(' *> exprP) <* charP ')'
     <|> try (MethodExpr <$> methodP) -- MethodExpr (has overlap with identExpr)
     <|> ValueExpr <$> valueP -- ValueExpr (value and ident have no overlap)
     <|> IdentExpr <$> identP -- IdentExpr
 
-identP :: Parser Ident --TODO: I added wsP to this!
+-- Parse a single identifier
+identP :: Parser Ident
 identP = (:) <$> (satisfy isLower) <*> (many (satisfy isAlphaNum)) <* wsP
 
--- A parser that parses a single Value
+-- Parse a single immediate value
 valueP :: Parser Value
 valueP =
   try (BoolValue <$> boolP)
     <|> (IntValue <$> integerP)
 
+-- Parse a single integer
 integerP :: Parser Int
 integerP = read <$> (many1 digit <* wsP)
 
+-- Parse a single boolean
 boolP :: Parser Bool
 boolP = (True <$ stringP "True") <|> (False <$ stringP "False")
 
+-- Helper for parsing strings with whitespace behind
 stringP :: String -> Parser String
 stringP s = string s <* wsP
 
+-- Helper for parsing characters with whitespace behind
 charP :: Char -> Parser Char
 charP c = char c <* wsP
 
+-- Helper for parsing whitespace and comments
 wsP :: Parser ()
-wsP = () <$ many (() <$ space <|> commentP)
+wsP = () <$ many (try (() <$ space) <|> commentP)
 
+-- Parse a single-line comment: `let x = 10; // this is a comment \n x = x+1`
 commentP :: Parser ()
-commentP = () <$ (string "//" *> noneOf ['\n'])
-
-myParse :: Parser a -> String -> Either ParseError a
-myParse p = parse (wsP *> p) ""
-
-parseFml :: String -> Either ParseError ParseTree
-parseFml = parse (fmlP <* eof) ""
+commentP = () <$ (string "//" *> many (noneOf ['\n']))

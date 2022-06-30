@@ -61,6 +61,6 @@ spawn {
 
 // EXPECTED OUTPUT:
 // Sprockel 1 and 2 should both print values 0 up and 100 down, but no value should
-// ever be repeated. This implements a multi-consumer multi-producer one value queue.
+// ever be repeated. This implements a multi-consumer multi-producer single value queue.
 //
 // This program will never terminate

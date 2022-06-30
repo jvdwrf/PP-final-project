@@ -1,0 +1,18 @@
+let x = 10;
+print(x);
+let x = 20;
+print(x);
+{
+    let x = 30;
+    print(x);
+}
+print(x);
+x = 40;
+print(x);
+
+// EXPECTED OUTPUT
+// Sprockell 0 says 10
+// Sprockell 0 says 20
+// Sprockell 0 says 30
+// Sprockell 0 says 20
+// Sprockell 0 says 40
